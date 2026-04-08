@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Agent 多智能体协作 | Claude Code 深度解析</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+  --border: #30363d; --text: #c9d1d9; --text2: #8b949e;
+  --accent: #58a6ff; --accent2: #79c0ff;
+  --pink: #ff7b72; --green: #3fb950; --yellow: #d29922;
+  --purple: #bc8cff; --orange: #f0883e; --cyan: #39c5cf;
+  --sidebar-w: 260px;
+  --topnav-h: 60px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; min-height: 100vh; }
+.topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    height: var(--topnav-h);
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+}
+.topnav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 700; color: #fff; text-decoration: none;
+    flex-shrink: 0; border-radius: 6px; transition: background 0.15s;
+    padding: 4px 8px; margin: -4px -8px;
+}
+.topnav-logo:hover { background: var(--bg3); text-decoration: none; }
+.topnav-logo .logo-icon { font-size: 20px; }
+.topnav-logo .logo-badge {
+    font-size: 10px; background: var(--accent); color: #000;
+    padding: 1px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;
+}
+.topnav-links { display: flex; align-items: center; gap: 4px; }
+.topnav-links a {
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+}
+.topnav-links a:hover { color: var(--text); background: var(--bg3); }
+.topnav-links a.active { color: var(--accent); }
+.topnav-right { display: flex; align-items: center; gap: 12px; }
+.version-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--green); font-weight: 600;
+}
+.dropdown { position: relative; }
+.dropdown-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+    cursor: pointer; border: none; background: none;
+    font-family: inherit;
+}
+.dropdown-btn:hover, .dropdown-btn.open { color: var(--text); background: var(--bg3); }
+.dropdown-btn .arrow { font-size: 10px; transition: transform 0.2s; }
+.dropdown-btn.open .arrow { transform: rotate(180deg); }
+.dropdown-panel {
+    display: none;
+    position: absolute; top: calc(100% + 8px); right: 0;
+    min-width: 380px;
+    background: rgba(13,17,23,0.97);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    z-index: 2000;
+}
+.dropdown-panel.open { display: block; }
+.dropdown-group { margin-bottom: 12px; }
+.dropdown-group:last-child { margin-bottom: 0; }
+.dropdown-group-title {
+    font-size: 10px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0 8px 6px;
+}
+.dropdown-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--text2);
+    text-decoration: none; transition: all 0.15s;
+}
+.dropdown-item:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
+.dropdown-item.active { color: var(--accent); background: rgba(88,166,255,0.08); }
+.dropdown-item .di-icon { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+.dropdown-item .di-text { flex: 1; }
+.dropdown-sep { height: 1px; background: var(--border); margin: 8px 0; }
+.layout { display: flex; padding-top: var(--topnav-h); min-height: 100vh; }
+.sidebar { width: var(--sidebar-w); height: calc(100vh - var(--topnav-h)); background: var(--bg2); border-right: 1px solid var(--border); position: fixed; top: var(--topnav-h); left: 0; overflow-y: auto; z-index: 100; }
+.sidebar-logo { padding: 20px; border-bottom: 1px solid var(--border); }
+.sidebar-logo .logo-title { font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.sidebar-logo .logo-sub { font-size: 12px; color: var(--cyan); }
+.sidebar-nav { padding: 12px 0; }
+.nav-section { padding: 8px 16px 4px; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; }
+.nav-item { display: block; padding: 7px 16px; font-size: 13px; color: var(--text2); text-decoration: none; border-left: 3px solid transparent; transition: all 0.2s; }
+.nav-item:hover, .nav-item.active { color: var(--accent); background: rgba(88,166,255,0.08); border-left-color: var(--accent); }
+.main { margin-left: var(--sidebar-w); flex: 1; padding-top: var(--topnav-h); }
+.hero { background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1a1f 100%); border-bottom: 1px solid var(--border); padding: 60px 48px 48px; position: relative; overflow: hidden; }
+.hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 500px; height: 500px; border-radius: 50%; background: radial-gradient(circle, rgba(57,197,207,0.06) 0%, transparent 70%); }
+.hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(57,197,207,0.1); border: 1px solid rgba(57,197,207,0.3); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--cyan); margin-bottom: 16px; }
+.hero h1 { font-size: 42px; font-weight: 800; color: #fff; margin-bottom: 12px; line-height: 1.2; }
+.hero h1 span { color: var(--cyan); }
+.hero p { font-size: 17px; color: var(--text2); max-width: 600px; line-height: 1.7; }
+.hero-meta { display: flex; gap: 24px; margin-top: 24px; flex-wrap: wrap; }
+.hero-meta-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); }
+.hero-meta-item .dot { width: 8px; height: 8px; border-radius: 50%; }
+.content { padding: 48px; max-width: 1100px; }
+.section { margin-bottom: 56px; }
+.section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.section-num { width: 32px; height: 32px; border-radius: 8px; background: rgba(57,197,207,0.15); border: 1px solid rgba(57,197,207,0.3); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--cyan); flex-shrink: 0; }
+.section h2 { font-size: 24px; font-weight: 700; color: var(--accent); }
+.section h3 { font-size: 18px; font-weight: 600; color: var(--accent2); margin: 24px 0 12px; }
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.card-icon { font-size: 28px; margin-bottom: 12px; }
+.card h4 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.card p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+pre { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 20px; overflow-x: auto; margin: 16px 0; }
+code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.7; color: var(--text); }
+.code-comment { color: var(--text2); }
+.code-keyword { color: var(--pink); }
+.code-string { color: var(--green); }
+.code-number { color: var(--purple); }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+th { background: var(--bg3); color: var(--accent2); font-size: 13px; font-weight: 600; padding: 12px 16px; text-align: left; border-bottom: 2px solid var(--border); }
+td { padding: 12px 16px; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); }
+tr:hover td { background: rgba(88,166,255,0.04); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+.badge-yellow { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.badge-cyan { background: rgba(57,197,207,0.15); color: var(--cyan); }
+.chart-container { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; }
+.chart-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+.chart-wrap { position: relative; height: 280px; }
+.tip { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.25); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; color: var(--text2); }
+.tip strong { color: var(--accent); }
+.warn { background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.25); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; color: var(--text2); }
+.warn strong { color: var(--yellow); }
+
+/* 架构图 */
+.arch-visual { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 16px 0; }
+.arch-coordinator { background: rgba(57,197,207,0.1); border: 2px solid var(--cyan); border-radius: 10px; padding: 16px; text-align: center; margin-bottom: 24px; }
+.arch-coordinator h4 { color: var(--cyan); font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.arch-coordinator p { font-size: 12px; color: var(--text2); }
+.arch-agents { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+.arch-agent { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+.arch-agent h4 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.arch-agent p { font-size: 11px; color: var(--text2); }
+.arch-agent .agent-icon { font-size: 20px; margin-bottom: 6px; }
+.arch-worktree { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.2); border-radius: 8px; padding: 12px; text-align: center; }
+.arch-worktree p { font-size: 12px; color: var(--text2); }
+.arch-arrow { text-align: center; color: var(--text2); font-size: 20px; margin: 8px 0; }
+
+/* 对比表 */
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.compare-box { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.compare-box h4 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.compare-box .item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); }
+.compare-box .item:last-child { border-bottom: none; }
+.compare-box .item .icon { flex-shrink: 0; }
+
+/* 任务板 */
+.task-board { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 16px 0; font-family: monospace; font-size: 13px; line-height: 1.8; }
+.tb-done { color: var(--green); }
+.tb-progress { color: var(--yellow); }
+.tb-wait { color: var(--text2); }
+.tb-block { color: var(--pink); }
+.tb-header { color: var(--accent); font-weight: 700; margin-bottom: 8px; }
+
+/* 操作分类 */
+.op-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.op-box { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.op-box h4 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+.op-concurrent h4 { color: var(--green); }
+.op-sequential h4 { color: var(--yellow); }
+.op-box .op-item { font-size: 12px; color: var(--text2); padding: 4px 0; border-bottom: 1px solid var(--border); font-family: monospace; }
+.op-box .op-item:last-child { border-bottom: none; }
+
+@media (max-width: 1024px) {
+  .topnav-links { display: none; }
+  .main { padding-top: var(--topnav-h); }
+  .content { padding: 24px 24px 48px; }
+  .arch-agents, .compare-grid, .op-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; }
+  .hero { padding: 32px 24px; }
+  .content { padding: 20px 16px 48px; }
+  .dropdown-panel { right: -16px; min-width: calc(100vw - 32px); }
+}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">
+    <span class="logo-icon">⚡</span>
+    <span>Claude Code</span>
+    <span class="logo-badge">深度解析</span>
+  </a>
+  <div class="topnav-links">
+    <a href="#">技术模块</a>
+    <a href="#">使用指南</a>
+    <div class="dropdown">
+      <button class="dropdown-btn" id="detailDropBtn">
+        详细拆解 <span class="arrow">▾</span>
+      </button>
+      <div class="dropdown-panel" id="detailDropPanel">
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">🔧 核心引擎</div>
+          <a href="claude_code_harness.html" class="dropdown-item"><span class="di-icon">🔧</span><span class="di-text">Harness 执行引擎</span></a>
+          <a href="claude_code_context.html" class="dropdown-item"><span class="di-icon">🧠</span><span class="di-text">Context 上下文系统</span></a>
+          <a href="claude_code_memory.html" class="dropdown-item"><span class="di-icon">💾</span><span class="di-text">Memory 记忆系统</span></a>
+          <a href="claude_code_tools.html" class="dropdown-item"><span class="di-icon">🛠️</span><span class="di-text">Tool System 工具系统</span></a>
+          <a href="claude_code_agent_loop.html" class="dropdown-item"><span class="di-icon">🔄</span><span class="di-text">Agent Loop 执行循环</span></a>
+          <a href="claude_code_multi_agent.html" class="dropdown-item active"><span class="di-icon">🤝</span><span class="di-text">Multi-Agent 多智能体</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📖 使用指南</div>
+          <a href="claude_code_user_manual.html" class="dropdown-item"><span class="di-icon">📖</span><span class="di-text">用户完整手册</span></a>
+          <a href="claude_code_prompt_guide.html" class="dropdown-item"><span class="di-icon">✍️</span><span class="di-text">Prompt 工程指南</span></a>
+          <a href="claude_code_cases.html" class="dropdown-item"><span class="di-icon">🚀</span><span class="di-text">实战案例库</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📊 深度报告</div>
+          <a href="claude_code_comparison.html" class="dropdown-item"><span class="di-icon">⚖️</span><span class="di-text">工具对比分析</span></a>
+          <a href="claude_code_report.html" class="dropdown-item"><span class="di-icon">🏗️</span><span class="di-text">架构深度拆解报告</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="topnav-right">
+    <span class="version-badge">✦ 2026 Q2</span>
+  </div>
+</nav>
+
+<div class="layout">
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <a href="index.html">
+      <div class="logo-title">🤝 Claude Code</div>
+      <div class="logo-sub">技术深度解析系列</div>
+    </a>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section">当前模块</div>
+    <a href="#overview" class="nav-item active">🏗️ 多 Agent 架构</a>
+    <a href="#subagent" class="nav-item">🤖 SubAgent 隔离</a>
+    <a href="#teams" class="nav-item">👥 Agent Teams</a>
+    <a href="#worktree" class="nav-item">🌳 Git Worktree</a>
+    <a href="#coordinator" class="nav-item">🎯 Coordinator 模式</a>
+    <a href="#sync" class="nav-item">🔄 状态同步</a>
+    <a href="#performance" class="nav-item">📊 性能对比</a>
+    <a href="#best-practices" class="nav-item">✅ 最佳实践</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="hero">
+    <div class="hero-badge">🤝 技术深度解析 · 第六篇</div>
+    <h1>Multi-Agent <span>多智能体协作</span></h1>
+    <p>Claude Code 最前沿的能力。多个 Claude 实例并行工作、相互协调，将原本需要数小时的任务压缩到分钟级别完成。</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><div class="dot" style="background:var(--cyan)"></div>SubAgent 上下文隔离</div>
+      <div class="hero-meta-item"><div class="dot" style="background:var(--green)"></div>Git Worktree 并行</div>
+      <div class="hero-meta-item"><div class="dot" style="background:var(--purple)"></div>Agent Teams（实验性）</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- 1. 架构 -->
+    <div class="section" id="overview">
+      <div class="section-header">
+        <div class="section-num">1</div>
+        <h2>多 Agent 架构全景</h2>
+      </div>
+
+      <div class="arch-visual">
+        <div class="arch-coordinator">
+          <h4>🎯 Coordinator（协调器）</h4>
+          <p>任务分解 · 子任务分配 · 生命周期管理 · 结果合并</p>
+        </div>
+        <div class="arch-arrow">↓ 分配子任务 ↓</div>
+        <div class="arch-agents">
+          <div class="arch-agent">
+            <div class="agent-icon">🖥️</div>
+            <h4>SubAgent（前端）</h4>
+            <p>独立 200K 上下文<br>专注前端开发</p>
+          </div>
+          <div class="arch-agent">
+            <div class="agent-icon">⚙️</div>
+            <h4>SubAgent（后端）</h4>
+            <p>独立 200K 上下文<br>专注 API 开发</p>
+          </div>
+          <div class="arch-agent">
+            <div class="agent-icon">🧪</div>
+            <h4>SubAgent（测试）</h4>
+            <p>独立 200K 上下文<br>专注测试编写</p>
+          </div>
+        </div>
+        <div class="arch-arrow">↓ 隔离工作目录 ↓</div>
+        <div class="arch-worktree">
+          <p>🌳 Git Worktree：worktrees/frontend · worktrees/backend · worktrees/tests</p>
+        </div>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">🚀</div>
+          <h4>并行执行</h4>
+          <p>多个 Agent 同时工作，总时间大幅缩短，典型提速 2.5-3x</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔒</div>
+          <h4>上下文隔离</h4>
+          <p>每个 Agent 有独立的 200K token 窗口，互不干扰</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🎯</div>
+          <h4>专业化分工</h4>
+          <p>按技术领域或功能模块分工，每个 Agent 专注于自己的领域</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🛡️</div>
+          <h4>容错性</h4>
+          <p>单个 Agent 失败不影响整体，可以重试或重新分配任务</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. SubAgent -->
+    <div class="section" id="subagent">
+      <div class="section-header">
+        <div class="section-num">2</div>
+        <h2>SubAgent：单会话内的隔离实例</h2>
+      </div>
+
+      <div class="compare-grid">
+        <div class="compare-box">
+          <h4 style="color:var(--pink)">😰 主 Agent（已满 80%）</h4>
+          <div class="item"><span class="icon">📚</span>大量对话历史</div>
+          <div class="item"><span class="icon">📄</span>多个文件内容</div>
+          <div class="item"><span class="icon">🔧</span>工具调用历史</div>
+          <div class="item"><span class="icon">⚠️</span>上下文快满了</div>
+        </div>
+        <div class="compare-box">
+          <h4 style="color:var(--green)">✨ SubAgent（全新 0%）</h4>
+          <div class="item"><span class="icon">📝</span>精简的任务描述</div>
+          <div class="item"><span class="icon">🎯</span>关键约束（来自父 Agent）</div>
+          <div class="item"><span class="icon">📁</span>需要处理的具体文件</div>
+          <div class="item"><span class="icon">🚀</span>全新的 200K 窗口</div>
+        </div>
+      </div>
+
+      <pre><code><span class="code-comment"># 创建 SubAgent 的方式</span>
+claude <span class="code-string">"创建一个子 Agent 来处理数据库迁移，
+        告诉它：使用 Prisma，目标是添加用户角色字段"</span>
+
+<span class="code-comment"># SubAgent 完成后只返回结果摘要</span>
+<span class="code-comment"># 不返回完整的执行历史（节省主 Agent 上下文）</span></code></pre>
+    </div>
+
+    <!-- 3. Agent Teams -->
+    <div class="section" id="teams">
+      <div class="section-header">
+        <div class="section-num">3</div>
+        <h2>Agent Teams：独立会话协作（实验性）</h2>
+      </div>
+
+      <div class="warn">
+        <strong>⚠️ 实验性功能：</strong>Agent Teams 目前需要 Claude Opus 4.6 模型，功能仍在开发中。普通用户可以通过 SubAgent 机制实现类似效果。
+      </div>
+
+      <div class="compare-grid">
+        <div class="compare-box">
+          <h4 style="color:var(--accent)">SubAgent</h4>
+          <div class="item"><span class="icon">🏠</span>同一个 Claude Code 进程内</div>
+          <div class="item"><span class="icon">👆</span>由父 Agent 直接控制</div>
+          <div class="item"><span class="icon">🔗</span>生命周期与父 Agent 绑定</div>
+          <div class="item"><span class="icon">✅</span>适合：简单的子任务</div>
+        </div>
+        <div class="compare-box">
+          <h4 style="color:var(--cyan)">Agent Teams</h4>
+          <div class="item"><span class="icon">🌐</span>独立的 Claude Code 会话</div>
+          <div class="item"><span class="icon">💬</span>可以直接相互通信</div>
+          <div class="item"><span class="icon">🔓</span>独立的生命周期</div>
+          <div class="item"><span class="icon">✅</span>适合：复杂的并行工作流</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Git Worktree -->
+    <div class="section" id="worktree">
+      <div class="section-header">
+        <div class="section-num">4</div>
+        <h2>Git Worktree：并行执行的基础设施</h2>
+      </div>
+      <p style="color:var(--text2);line-height:1.8;margin-bottom:20px">Git Worktree 为每个 Agent 提供独立的工作目录，彻底解决多 Agent 并行修改文件的冲突问题。</p>
+
+      <pre><code><span class="code-comment"># 为多 Agent 创建 Worktree</span>
+git worktree add worktrees/frontend -b feature/frontend
+git worktree add worktrees/backend -b feature/backend
+git worktree add worktrees/tests -b feature/tests
+
+<span class="code-comment"># 查看所有 Worktree</span>
+git worktree list
+<span class="code-comment"># /project                    abc1234 [main]</span>
+<span class="code-comment"># /project/worktrees/frontend def5678 [feature/frontend]</span>
+<span class="code-comment"># /project/worktrees/backend  ghi9012 [feature/backend]</span>
+<span class="code-comment"># /project/worktrees/tests    jkl3456 [feature/tests]</span>
+
+<span class="code-comment"># 完成后合并</span>
+git merge feature/frontend feature/backend feature/tests</code></pre>
+    </div>
+
+    <!-- 5. Coordinator -->
+    <div class="section" id="coordinator">
+      <div class="section-header">
+        <div class="section-num">5</div>
+        <h2>Coordinator 模式</h2>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">✂️</div>
+          <h4>任务分解</h4>
+          <p>将大任务分解为可并行的子任务，分析依赖关系，识别可并行的部分</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📋</div>
+          <h4>任务分配</h4>
+          <p>将子任务分配给最合适的 Agent，考虑 Agent 的专业能力和当前负载</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📊</div>
+          <h4>进度监控</h4>
+          <p>实时监控所有 Agent 的执行进度，处理失败和阻塞情况</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔗</div>
+          <h4>结果合并</h4>
+          <p>合并所有 Agent 的输出，解决冲突，生成最终的综合结果</p>
+        </div>
+      </div>
+
+      <h3>实际案例：全栈功能开发</h3>
+      <div class="task-board">
+<div class="tb-header"># 任务板 - 用户注册功能</div>
+<br>
+<div class="tb-header">## 进行中</div>
+<div class="tb-done">- [x] 后端 API 设计（后端 Agent，完成于 14:30）</div>
+<div class="tb-progress">- [ ] 前端表单组件（前端 Agent，进行中 ⏳）</div>
+<div class="tb-wait">- [ ] 集成测试（测试 Agent，等待后端完成）</div>
+<br>
+<div class="tb-header">## 已完成</div>
+<div class="tb-done">- [x] 数据库 Schema 设计</div>
+<div class="tb-done">- [x] API 接口文档</div>
+<br>
+<div class="tb-header">## 阻塞</div>
+<div class="tb-block">- ⚠️ 邮件服务配置（需要 DevOps 提供 SMTP 凭证）</div>
+<br>
+<div class="tb-header">## 决策记录</div>
+<div class="tb-wait">- 使用 bcrypt（cost factor 12）进行密码哈希</div>
+<div class="tb-wait">- 注册成功后自动登录</div>
+      </div>
+    </div>
+
+    <!-- 6. 状态同步 -->
+    <div class="section" id="sync">
+      <div class="section-header">
+        <div class="section-num">6</div>
+        <h2>状态同步机制</h2>
+      </div>
+
+      <h3>操作分类：并发 vs 顺序</h3>
+      <div class="op-grid">
+        <div class="op-box op-concurrent">
+          <h4>✅ 可并发操作（只读类）</h4>
+          <div class="op-item">read_file — 读取文件</div>
+          <div class="op-item">grep_search — 搜索代码</div>
+          <div class="op-item">git_status — 查看状态</div>
+          <div class="op-item">run_tests — 运行测试</div>
+          <div class="op-item">analyze_code — 代码分析</div>
+          <div class="op-item">generate_docs — 生成文档</div>
+        </div>
+        <div class="op-box op-sequential">
+          <h4>⚠️ 需顺序执行（有状态类）</h4>
+          <div class="op-item">write_file — 写入文件</div>
+          <div class="op-item">git_commit — git 提交</div>
+          <div class="op-item">database_migrate — 数据库迁移</div>
+          <div class="op-item">deploy — 部署操作</div>
+          <div class="op-item">install_deps — 安装依赖</div>
+          <div class="op-item">modify_config — 修改配置</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. 性能 -->
+    <div class="section" id="performance">
+      <div class="section-header">
+        <div class="section-num">7</div>
+        <h2>性能对比</h2>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">单 Agent vs 多 Agent 执行时间对比（分钟）</div>
+        <div class="chart-wrap">
+          <canvas id="perfChart"></canvas>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>任务类型</th><th>单 Agent</th><th>多 Agent（3个）</th><th>提速比</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>全栈功能开发</td><td>90 分钟</td><td>35 分钟</td><td><span class="badge badge-green">2.6x</span></td></tr>
+          <tr><td>代码库安全审计</td><td>120 分钟</td><td>40 分钟</td><td><span class="badge badge-green">3x</span></td></tr>
+          <tr><td>大规模重构</td><td>180 分钟</td><td>60 分钟</td><td><span class="badge badge-green">3x</span></td></tr>
+          <tr><td>测试套件编写</td><td>60 分钟</td><td>25 分钟</td><td><span class="badge badge-green">2.4x</span></td></tr>
+          <tr><td>文档生成</td><td>45 分钟</td><td>15 分钟</td><td><span class="badge badge-green">3x</span></td></tr>
+        </tbody>
+      </table>
+
+      <div class="chart-container">
+        <div class="chart-title">多 Agent 适用场景评分</div>
+        <div class="chart-wrap">
+          <canvas id="radarChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8. 最佳实践 -->
+    <div class="section" id="best-practices">
+      <div class="section-header">
+        <div class="section-num">8</div>
+        <h2>最佳实践</h2>
+      </div>
+
+      <h3>何时使用多 Agent？</h3>
+      <div class="card-grid">
+        <div class="card" style="border-color:var(--green)">
+          <div class="card-icon">✅</div>
+          <h4>适合多 Agent</h4>
+          <p>任务可明确分解为独立子任务 · 子任务依赖关系少 · 总工作量 > 2小时 · 需要专业化分工</p>
+        </div>
+        <div class="card" style="border-color:var(--pink)">
+          <div class="card-icon">❌</div>
+          <h4>不适合多 Agent</h4>
+          <p>任务高度耦合无法并行 · 总工作量 < 30分钟 · 需要频繁人工决策 · API 配额受限</p>
+        </div>
+      </div>
+
+      <div class="tip">
+        <strong>💡 成本提示：</strong>多 Agent 会消耗更多 API token（多个 Agent 同时运行），但对于大型任务（>2小时），总体上更经济，因为每个 Agent 的上下文更小，token 效率更高。
+      </div>
+    </div>
+
+  </div>
+</main>
+</div><!-- /.layout -->
+
+<script>
+// 性能对比图
+const perfCtx = document.getElementById('perfChart').getContext('2d');
+new Chart(perfCtx, {
+  type: 'bar',
+  data: {
+    labels: ['全栈功能开发', '安全审计', '大规模重构', '测试套件', '文档生成'],
+    datasets: [
+      {
+        label: '单 Agent（分钟）',
+        data: [90, 120, 180, 60, 45],
+        backgroundColor: 'rgba(255,123,114,0.6)',
+        borderColor: '#ff7b72',
+        borderWidth: 2,
+      },
+      {
+        label: '多 Agent 3个（分钟）',
+        data: [35, 40, 60, 25, 15],
+        backgroundColor: 'rgba(57,197,207,0.6)',
+        borderColor: '#39c5cf',
+        borderWidth: 2,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#c9d1d9', font: { size: 13 } } } },
+    scales: {
+      x: { ticks: { color: '#8b949e', font: { size: 11 } }, grid: { color: 'rgba(48,54,61,0.5)' } },
+      y: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' },
+           title: { display: true, text: '执行时间（分钟）', color: '#8b949e' } }
+    }
+  }
+});
+
+// 雷达图
+const radarCtx = document.getElementById('radarChart').getContext('2d');
+new Chart(radarCtx, {
+  type: 'radar',
+  data: {
+    labels: ['任务可分解性', '并行潜力', '专业化需求', '规模效益', '容错需求', '时间敏感性'],
+    datasets: [
+      {
+        label: '全栈功能开发',
+        data: [85, 80, 90, 75, 70, 85],
+        borderColor: '#39c5cf',
+        backgroundColor: 'rgba(57,197,207,0.15)',
+        borderWidth: 2,
+        pointBackgroundColor: '#39c5cf',
+      },
+      {
+        label: '代码库重构',
+        data: [70, 75, 65, 90, 80, 70],
+        borderColor: '#bc8cff',
+        backgroundColor: 'rgba(188,140,255,0.15)',
+        borderWidth: 2,
+        pointBackgroundColor: '#bc8cff',
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#c9d1d9', font: { size: 13 } } } },
+    scales: {
+      r: {
+        ticks: { color: '#8b949e', backdropColor: 'transparent' },
+        grid: { color: 'rgba(48,54,61,0.8)' },
+        pointLabels: { color: '#c9d1d9', font: { size: 11 } },
+        min: 0, max: 100,
+      }
+    }
+  }
+});
+</script>
+<script>
+// Dropdown
+const dropBtn = document.getElementById('detailDropBtn');
+const dropPanel = document.getElementById('detailDropPanel');
+dropBtn.addEventListener('click', () => {
+  dropPanel.classList.toggle('open');
+  dropBtn.classList.toggle('open');
+});
+document.addEventListener('click', e => {
+  if (!dropBtn.contains(e.target) && !dropPanel.contains(e.target)) {
+    dropPanel.classList.remove('open');
+    dropBtn.classList.remove('open');
+  }
+});
+
+// Sidebar active link on scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      const id = entry.target.id;
+      const active = document.querySelector(`.nav-item[href="#${id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -60% 0px' });
+document.querySelectorAll('.section[id]').forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Loop 执行循环 | Claude Code 深度解析</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+  --border: #30363d; --text: #c9d1d9; --text2: #8b949e;
+  --accent: #58a6ff; --accent2: #79c0ff;
+  --pink: #ff7b72; --green: #3fb950; --yellow: #d29922;
+  --purple: #bc8cff; --orange: #f0883e; --teal: #56d364;
+  --sidebar-w: 260px;
+  --topnav-h: 60px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; min-height: 100vh; }
+.topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    height: var(--topnav-h);
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+}
+.topnav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 700; color: #fff; text-decoration: none;
+    flex-shrink: 0; border-radius: 6px; transition: background 0.15s;
+    padding: 4px 8px; margin: -4px -8px;
+}
+.topnav-logo:hover { background: var(--bg3); text-decoration: none; }
+.topnav-logo .logo-icon { font-size: 20px; }
+.topnav-logo .logo-badge {
+    font-size: 10px; background: var(--accent); color: #000;
+    padding: 1px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;
+}
+.topnav-links { display: flex; align-items: center; gap: 4px; }
+.topnav-links a {
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+}
+.topnav-links a:hover { color: var(--text); background: var(--bg3); }
+.topnav-links a.active { color: var(--accent); }
+.topnav-right { display: flex; align-items: center; gap: 12px; }
+.version-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--green); font-weight: 600;
+}
+.dropdown { position: relative; }
+.dropdown-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+    cursor: pointer; border: none; background: none;
+    font-family: inherit;
+}
+.dropdown-btn:hover, .dropdown-btn.open { color: var(--text); background: var(--bg3); }
+.dropdown-btn .arrow { font-size: 10px; transition: transform 0.2s; }
+.dropdown-btn.open .arrow { transform: rotate(180deg); }
+.dropdown-panel {
+    display: none;
+    position: absolute; top: calc(100% + 8px); right: 0;
+    min-width: 380px;
+    background: rgba(13,17,23,0.97);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    z-index: 2000;
+}
+.dropdown-panel.open { display: block; }
+.dropdown-group { margin-bottom: 12px; }
+.dropdown-group:last-child { margin-bottom: 0; }
+.dropdown-group-title {
+    font-size: 10px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0 8px 6px;
+}
+.dropdown-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--text2);
+    text-decoration: none; transition: all 0.15s;
+}
+.dropdown-item:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
+.dropdown-item.active { color: var(--accent); background: rgba(88,166,255,0.08); }
+.dropdown-item .di-icon { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+.dropdown-item .di-text { flex: 1; }
+.dropdown-sep { height: 1px; background: var(--border); margin: 8px 0; }
+.layout { display: flex; padding-top: var(--topnav-h); min-height: 100vh; }
+.sidebar { width: var(--sidebar-w); height: calc(100vh - var(--topnav-h)); background: var(--bg2); border-right: 1px solid var(--border); position: fixed; top: var(--topnav-h); left: 0; overflow-y: auto; z-index: 100; }
+.sidebar-logo { padding: 20px; border-bottom: 1px solid var(--border); }
+.sidebar-logo .logo-title { font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.sidebar-logo .logo-sub { font-size: 12px; color: var(--teal); }
+.sidebar-nav { padding: 12px 0; }
+.nav-section { padding: 8px 16px 4px; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; }
+.nav-item { display: block; padding: 7px 16px; font-size: 13px; color: var(--text2); text-decoration: none; border-left: 3px solid transparent; transition: all 0.2s; }
+.nav-item:hover, .nav-item.active { color: var(--accent); background: rgba(88,166,255,0.08); border-left-color: var(--accent); }
+.main { margin-left: var(--sidebar-w); flex: 1; padding-top: var(--topnav-h); }
+.hero { background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1a1f 100%); border-bottom: 1px solid var(--border); padding: 60px 48px 48px; position: relative; overflow: hidden; }
+.hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 500px; height: 500px; border-radius: 50%; background: radial-gradient(circle, rgba(86,211,100,0.06) 0%, transparent 70%); }
+.hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(86,211,100,0.1); border: 1px solid rgba(86,211,100,0.3); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--teal); margin-bottom: 16px; }
+.hero h1 { font-size: 42px; font-weight: 800; color: #fff; margin-bottom: 12px; line-height: 1.2; }
+.hero h1 span { color: var(--teal); }
+.hero p { font-size: 17px; color: var(--text2); max-width: 600px; line-height: 1.7; }
+.hero-meta { display: flex; gap: 24px; margin-top: 24px; flex-wrap: wrap; }
+.hero-meta-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); }
+.hero-meta-item .dot { width: 8px; height: 8px; border-radius: 50%; }
+.content { padding: 48px; max-width: 1100px; }
+.section { margin-bottom: 56px; }
+.section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.section-num { width: 32px; height: 32px; border-radius: 8px; background: rgba(86,211,100,0.15); border: 1px solid rgba(86,211,100,0.3); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--teal); flex-shrink: 0; }
+.section h2 { font-size: 24px; font-weight: 700; color: var(--accent); }
+.section h3 { font-size: 18px; font-weight: 600; color: var(--accent2); margin: 24px 0 12px; }
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.card-icon { font-size: 28px; margin-bottom: 12px; }
+.card h4 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.card p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+pre { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 20px; overflow-x: auto; margin: 16px 0; }
+code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.7; color: var(--text); }
+.code-comment { color: var(--text2); }
+.code-keyword { color: var(--pink); }
+.code-string { color: var(--green); }
+.code-number { color: var(--purple); }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+th { background: var(--bg3); color: var(--accent2); font-size: 13px; font-weight: 600; padding: 12px 16px; text-align: left; border-bottom: 2px solid var(--border); }
+td { padding: 12px 16px; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); }
+tr:hover td { background: rgba(88,166,255,0.04); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+.badge-yellow { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.badge-red { background: rgba(255,123,114,0.15); color: var(--pink); }
+.chart-container { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; }
+.chart-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+.chart-wrap { position: relative; height: 280px; }
+.tip { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.25); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; color: var(--text2); }
+.tip strong { color: var(--accent); }
+.warn { background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.25); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; color: var(--text2); }
+.warn strong { color: var(--yellow); }
+
+/* Agent Loop 可视化 */
+.loop-diagram { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 24px 0; }
+.loop-step { width: 200px; background: var(--bg3); border: 2px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; position: relative; }
+.loop-step.think { border-color: var(--accent); }
+.loop-step.act { border-color: var(--orange); }
+.loop-step.observe { border-color: var(--purple); }
+.loop-step.decide { border-color: var(--teal); }
+.loop-step .step-icon { font-size: 24px; margin-bottom: 6px; }
+.loop-step .step-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.loop-step.think .step-name { color: var(--accent); }
+.loop-step.act .step-name { color: var(--orange); }
+.loop-step.observe .step-name { color: var(--purple); }
+.loop-step.decide .step-name { color: var(--teal); }
+.loop-step .step-desc { font-size: 12px; color: var(--text2); }
+.loop-arrow { font-size: 24px; color: var(--text2); padding: 4px 0; }
+.loop-back { font-size: 12px; color: var(--text2); margin-top: 8px; text-align: center; }
+
+/* Plan Mode 流程 */
+.plan-phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+.plan-phase { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+.plan-phase .phase-num { width: 28px; height: 28px; border-radius: 50%; background: rgba(88,166,255,0.15); color: var(--accent); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
+.plan-phase h4 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.plan-phase p { font-size: 11px; color: var(--text2); line-height: 1.5; }
+
+/* 错误恢复 */
+.error-types { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin: 16px 0; }
+.error-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; gap: 12px; }
+.error-icon { font-size: 20px; flex-shrink: 0; }
+.error-content h4 { font-size: 13px; font-weight: 600; color: var(--pink); margin-bottom: 4px; }
+.error-content p { font-size: 12px; color: var(--text2); line-height: 1.5; }
+.error-content .recovery { font-size: 11px; color: var(--green); margin-top: 4px; }
+
+/* 日志示例 */
+.log-output { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 16px 0; font-family: monospace; font-size: 12px; line-height: 1.8; }
+.log-think { color: var(--accent); }
+.log-act { color: var(--orange); }
+.log-observe { color: var(--purple); }
+.log-decide { color: var(--teal); }
+.log-time { color: var(--text2); }
+
+@media (max-width: 1024px) {
+  .topnav-links { display: none; }
+  .main { padding-top: var(--topnav-h); }
+  .content { padding: 24px 24px 48px; }
+  .plan-phases { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; }
+  .hero { padding: 32px 24px; }
+  .content { padding: 20px 16px 48px; }
+  .dropdown-panel { right: -16px; min-width: calc(100vw - 32px); }
+}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">
+    <span class="logo-icon">⚡</span>
+    <span>Claude Code</span>
+    <span class="logo-badge">深度解析</span>
+  </a>
+  <div class="topnav-links">
+    <a href="#">技术模块</a>
+    <a href="#">使用指南</a>
+    <div class="dropdown">
+      <button class="dropdown-btn" id="detailDropBtn">
+        详细拆解 <span class="arrow">▾</span>
+      </button>
+      <div class="dropdown-panel" id="detailDropPanel">
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">🔧 核心引擎</div>
+          <a href="claude_code_harness.html" class="dropdown-item"><span class="di-icon">🔧</span><span class="di-text">Harness 执行引擎</span></a>
+          <a href="claude_code_context.html" class="dropdown-item"><span class="di-icon">🧠</span><span class="di-text">Context 上下文系统</span></a>
+          <a href="claude_code_memory.html" class="dropdown-item"><span class="di-icon">💾</span><span class="di-text">Memory 记忆系统</span></a>
+          <a href="claude_code_tools.html" class="dropdown-item"><span class="di-icon">🛠️</span><span class="di-text">Tool System 工具系统</span></a>
+          <a href="claude_code_agent_loop.html" class="dropdown-item active"><span class="di-icon">🔄</span><span class="di-text">Agent Loop 执行循环</span></a>
+          <a href="claude_code_multi_agent.html" class="dropdown-item"><span class="di-icon">🤝</span><span class="di-text">Multi-Agent 多智能体</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📖 使用指南</div>
+          <a href="claude_code_user_manual.html" class="dropdown-item"><span class="di-icon">📖</span><span class="di-text">用户完整手册</span></a>
+          <a href="claude_code_prompt_guide.html" class="dropdown-item"><span class="di-icon">✍️</span><span class="di-text">Prompt 工程指南</span></a>
+          <a href="claude_code_cases.html" class="dropdown-item"><span class="di-icon">🚀</span><span class="di-text">实战案例库</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📊 深度报告</div>
+          <a href="claude_code_comparison.html" class="dropdown-item"><span class="di-icon">⚖️</span><span class="di-text">工具对比分析</span></a>
+          <a href="claude_code_report.html" class="dropdown-item"><span class="di-icon">🏗️</span><span class="di-text">架构深度拆解报告</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="topnav-right">
+    <span class="version-badge">✦ 2026 Q2</span>
+  </div>
+</nav>
+
+<div class="layout">
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <a href="index.html">
+      <div class="logo-title">🔄 Claude Code</div>
+      <div class="logo-sub">技术深度解析系列</div>
+    </a>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section">当前模块</div>
+    <a href="#overview" class="nav-item active">🔄 Agent Loop 概述</a>
+    <a href="#plan-mode" class="nav-item">📋 Plan Mode</a>
+    <a href="#execution" class="nav-item">⚡ 执行阶段详解</a>
+    <a href="#error-recovery" class="nav-item">🔧 错误恢复机制</a>
+    <a href="#checkpoints" class="nav-item">💾 自动检查点</a>
+    <a href="#parallel" class="nav-item">⚡ 并发执行</a>
+    <a href="#debug" class="nav-item">🐛 调试与监控</a>
+    <a href="#best-practices" class="nav-item">✅ 最佳实践</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="hero">
+    <div class="hero-badge">🔄 技术深度解析 · 第五篇</div>
+    <h1>Agent Loop <span>执行循环</span></h1>
+    <p>Claude Code 的心脏。定义了 Claude 如何感知环境、制定计划、采取行动、观察结果，并在循环中不断推进任务直到完成。</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><div class="dot" style="background:var(--teal)"></div>内部代号：nO</div>
+      <div class="hero-meta-item"><div class="dot" style="background:var(--accent)"></div>ReAct 模式</div>
+      <div class="hero-meta-item"><div class="dot" style="background:var(--yellow)"></div>自愈查询循环</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- 1. 概述 -->
+    <div class="section" id="overview">
+      <div class="section-header">
+        <div class="section-num">1</div>
+        <h2>Agent Loop 核心循环</h2>
+      </div>
+      <p style="color:var(--text2);line-height:1.8;margin-bottom:24px">Agent Loop（内部代号 <strong style="color:var(--pink)">nO</strong>）遵循经典的 Think → Act → Observe → Decide 循环，实现了 ReAct（Reasoning + Acting）模式。</p>
+
+      <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap">
+        <div class="loop-diagram">
+          <div class="loop-step think">
+            <div class="step-icon">🧠</div>
+            <div class="step-name">Think</div>
+            <div class="step-desc">分析当前状态<br>决定下一步行动</div>
+          </div>
+          <div class="loop-arrow">↓</div>
+          <div class="loop-step act">
+            <div class="step-icon">⚡</div>
+            <div class="step-name">Act</div>
+            <div class="step-desc">调用工具<br>bash/read/write/grep</div>
+          </div>
+          <div class="loop-arrow">↓</div>
+          <div class="loop-step observe">
+            <div class="step-icon">👁️</div>
+            <div class="step-name">Observe</div>
+            <div class="step-desc">接收工具执行结果<br>更新上下文</div>
+          </div>
+          <div class="loop-arrow">↓</div>
+          <div class="loop-step decide">
+            <div class="step-icon">🎯</div>
+            <div class="step-name">Decide</div>
+            <div class="step-desc">继续循环 or<br>完成任务 or 请求帮助</div>
+          </div>
+          <div class="loop-back">↑ 继续循环 ↑</div>
+        </div>
+
+        <div style="flex:1;min-width:300px">
+          <div class="chart-container" style="margin-top:0">
+            <div class="chart-title">典型任务的循环次数分布</div>
+            <div class="chart-wrap">
+              <canvas id="loopChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Plan Mode -->
+    <div class="section" id="plan-mode">
+      <div class="section-header">
+        <div class="section-num">2</div>
+        <h2>Plan Mode：先规划，再执行</h2>
+      </div>
+      <p style="color:var(--text2);line-height:1.8;margin-bottom:20px">Plan Mode 是 2026 年 1 月引入的重要特性，让 Claude 在执行前先制定完整计划，避免无效尝试。</p>
+
+      <div class="plan-phases">
+        <div class="plan-phase">
+          <div class="phase-num">1</div>
+          <h4>只读探索</h4>
+          <p>读取相关文件，分析代码结构，识别依赖关系（不修改任何文件）</p>
+        </div>
+        <div class="plan-phase">
+          <div class="phase-num">2</div>
+          <h4>生成计划</h4>
+          <p>列出所有需要修改的文件，描述每个修改的内容，估计工作量和风险</p>
+        </div>
+        <div class="plan-phase">
+          <div class="phase-num">3</div>
+          <h4>用户确认</h4>
+          <p>展示完整计划，等待用户批准，用户可以修改或拒绝</p>
+        </div>
+        <div class="plan-phase">
+          <div class="phase-num">4</div>
+          <h4>执行计划</h4>
+          <p>用户批准后，按计划逐步执行，支持中途暂停和调整</p>
+        </div>
+      </div>
+
+      <pre><code><span class="code-comment"># 启用 Plan Mode</span>
+claude --plan <span class="code-string">"重构整个认证模块"</span>
+
+<span class="code-comment"># Plan Mode 输出示例：</span>
+<span class="code-comment"># ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>
+<span class="code-comment"># 📋 迁移计划：Express → Fastify</span>
+<span class="code-comment">#</span>
+<span class="code-comment"># 分析结果：</span>
+<span class="code-comment"># - 找到 23 个 API 路由文件</span>
+<span class="code-comment"># - 找到 5 个中间件文件</span>
+<span class="code-comment">#</span>
+<span class="code-comment"># 计划步骤：</span>
+<span class="code-comment"># 1. 安装 Fastify 依赖</span>
+<span class="code-comment"># 2. 创建 Fastify 应用入口</span>
+<span class="code-comment"># 3. 迁移 23 个路由文件</span>
+<span class="code-comment">#</span>
+<span class="code-comment"># 预计修改：31 个文件</span>
+<span class="code-comment"># 是否继续执行？[y/N]</span>
+<span class="code-comment"># ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span></code></pre>
+    </div>
+
+    <!-- 3. 执行阶段 -->
+    <div class="section" id="execution">
+      <div class="section-header">
+        <div class="section-num">3</div>
+        <h2>执行阶段详解</h2>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">📥</div>
+          <h4>阶段一：收集上下文</h4>
+          <p>加载 CLAUDE.md 和 MEMORY.md，分析任务确定需要读取的文件，收集环境信息（git 状态、Node 版本等）</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">⚡</div>
+          <h4>阶段二：采取行动</h4>
+          <p>按计划执行工具调用，每次执行前检查权限，更新上下文，处理执行结果</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">✅</div>
+          <h4>阶段三：验证结果</h4>
+          <p>修改代码后自动运行测试，验证修复有效，如果测试失败自动回滚并重试</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 错误恢复 -->
+    <div class="section" id="error-recovery">
+      <div class="section-header">
+        <div class="section-num">4</div>
+        <h2>错误恢复机制</h2>
+      </div>
+      <p style="color:var(--text2);line-height:1.8;margin-bottom:20px">Claude Code 实现了<strong style="color:var(--accent)">自愈查询循环（Self-Healing Query Loop）</strong>，能够自动从多种错误中恢复。</p>
+
+      <div class="error-types">
+        <div class="error-item">
+          <div class="error-icon">💥</div>
+          <div class="error-content">
+            <h4>ContextOverflowError</h4>
+            <p>上下文使用率超过 90%</p>
+            <div class="recovery">→ 触发 Full Compact 压缩</div>
+          </div>
+        </div>
+        <div class="error-item">
+          <div class="error-icon">📊</div>
+          <div class="error-content">
+            <h4>TokenLimitError</h4>
+            <p>单次请求超过 token 限制</p>
+            <div class="recovery">→ 升级到 Opus 模型</div>
+          </div>
+        </div>
+        <div class="error-item">
+          <div class="error-icon">🔧</div>
+          <div class="error-content">
+            <h4>ToolExecutionError</h4>
+            <p>工具调用失败</p>
+            <div class="recovery">→ 分析错误，调整参数重试</div>
+          </div>
+        </div>
+        <div class="error-item">
+          <div class="error-icon">🌐</div>
+          <div class="error-content">
+            <h4>ModelError</h4>
+            <p>API 错误或网络问题</p>
+            <div class="recovery">→ 指数退避重试（1s/2s/4s/8s）</div>
+          </div>
+        </div>
+        <div class="error-item">
+          <div class="error-icon">🔐</div>
+          <div class="error-content">
+            <h4>PermissionError</h4>
+            <p>权限不足，操作被拒绝</p>
+            <div class="recovery">→ 请求用户授权</div>
+          </div>
+        </div>
+        <div class="error-item">
+          <div class="error-icon">⏰</div>
+          <div class="error-content">
+            <h4>TimeoutError</h4>
+            <p>执行超时（>120秒）</p>
+            <div class="recovery">→ 分解任务，逐步执行</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">错误类型分布与恢复成功率</div>
+        <div class="chart-wrap">
+          <canvas id="errorChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 检查点 -->
+    <div class="section" id="checkpoints">
+      <div class="section-header">
+        <div class="section-num">5</div>
+        <h2>自动检查点</h2>
+      </div>
+
+      <pre><code><span class="code-comment"># 查看可用检查点</span>
+claude --list-checkpoints
+
+<span class="code-comment"># 输出示例：</span>
+<span class="code-comment"># ID          时间                触发原因              状态</span>
+<span class="code-comment"># cp_001      2026-04-07 14:30   before_file_write     可用</span>
+<span class="code-comment"># cp_002      2026-04-07 14:45   after_major_milestone 可用</span>
+<span class="code-comment"># cp_003      2026-04-07 15:00   before_context_compact 可用</span>
+
+<span class="code-comment"># 恢复到特定检查点</span>
+claude --resume cp_002
+
+<span class="code-comment"># 恢复到最近的检查点</span>
+claude --resume latest</code></pre>
+    </div>
+
+    <!-- 6. 并发 -->
+    <div class="section" id="parallel">
+      <div class="section-header">
+        <div class="section-num">6</div>
+        <h2>并发与并行执行</h2>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">⚡</div>
+          <h4>并行工具调用</h4>
+          <p>当多个工具调用相互独立时，Agent Loop 会并行执行它们，大幅减少总延迟</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔀</div>
+          <h4>任务自动分解</h4>
+          <p>对于大型任务，Claude 会自动分解为子任务，使用多个子 Agent 并行处理</p>
+        </div>
+      </div>
+
+      <pre><code><span class="code-comment"># 并行读取多个文件（Claude 自动并行化）</span>
+claude <span class="code-string">"同时读取 src/auth.ts、src/user.ts、src/db.ts，分析它们的依赖关系"</span>
+
+<span class="code-comment"># 内部：三个 read 调用并行执行</span>
+<span class="code-comment"># [read("src/auth.ts"), read("src/user.ts"), read("src/db.ts")]</span>
+<span class="code-comment"># 同时发出，同时等待结果</span></code></pre>
+    </div>
+
+    <!-- 7. 调试 -->
+    <div class="section" id="debug">
+      <div class="section-header">
+        <div class="section-num">7</div>
+        <h2>调试与监控</h2>
+      </div>
+
+      <div class="log-output">
+<span class="log-time">[14:30:01]</span> <span class="log-think">THINK: 分析任务：修复登录 bug</span>
+<span class="log-time">[14:30:02]</span> <span class="log-act">ACT: 调用工具 read(src/auth/login.ts)</span>
+<span class="log-time">[14:30:02]</span> <span class="log-observe">OBSERVE: 读取成功，文件大小 2.3KB</span>
+<span class="log-time">[14:30:03]</span> <span class="log-think">THINK: 发现问题：密码比较使用了 == 而不是 bcrypt.compare</span>
+<span class="log-time">[14:30:04]</span> <span class="log-act">ACT: 调用工具 edit(src/auth/login.ts, ...)</span>
+<span class="log-time">[14:30:04]</span> <span class="log-observe">OBSERVE: 文件修改成功</span>
+<span class="log-time">[14:30:05]</span> <span class="log-act">ACT: 调用工具 bash(npm test -- auth)</span>
+<span class="log-time">[14:30:08]</span> <span class="log-observe">OBSERVE: 测试通过（3/3）</span>
+<span class="log-time">[14:30:08]</span> <span class="log-decide">DECIDE: 任务完成 ✅</span>
+      </div>
+
+      <pre><code><span class="code-comment"># 启用详细日志</span>
+claude --verbose
+
+<span class="code-comment"># 中断和恢复</span>
+Ctrl+C                  <span class="code-comment"># 中断正在执行的任务</span>
+claude --resume         <span class="code-comment"># 恢复中断的任务</span>
+claude /history         <span class="code-comment"># 查看任务历史</span></code></pre>
+    </div>
+
+    <!-- 8. 最佳实践 -->
+    <div class="section" id="best-practices">
+      <div class="section-header">
+        <div class="section-num">8</div>
+        <h2>最佳实践</h2>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">📝</div>
+          <h4>清晰的任务描述</h4>
+          <p>提供具体的文件路径、预期行为、约束条件，避免模糊的"修复 bug"</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📋</div>
+          <h4>复杂任务用 Plan Mode</h4>
+          <p>对于涉及多个文件的重构，先用 --plan 生成计划，审查后再执行</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔢</div>
+          <h4>合理设置 max-turns</h4>
+          <p>简单任务设 5-10 轮，复杂任务设 30-50 轮，防止无限循环</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">✂️</div>
+          <h4>分解大型任务</h4>
+          <p>将大任务分解为独立的小任务，每个任务一个会话，保持上下文干净</p>
+        </div>
+      </div>
+
+      <div class="tip">
+        <strong>💡 Tasks 功能：</strong>使用 <code>claude /task create "任务名"</code> 创建持久化任务，即使会话中断也能恢复。任务状态保存在 <code>.claude/tasks/</code> 目录中。
+      </div>
+    </div>
+
+  </div>
+</main>
+</div><!-- /.layout -->
+
+<script>
+// 循环次数分布
+const loopCtx = document.getElementById('loopChart').getContext('2d');
+new Chart(loopCtx, {
+  type: 'bar',
+  data: {
+    labels: ['1-5轮', '6-10轮', '11-20轮', '21-50轮', '50+轮'],
+    datasets: [{
+      label: '任务占比 (%)',
+      data: [35, 30, 20, 12, 3],
+      backgroundColor: ['rgba(86,211,100,0.7)', 'rgba(88,166,255,0.7)', 'rgba(210,153,34,0.7)', 'rgba(255,123,114,0.7)', 'rgba(188,140,255,0.7)'],
+      borderColor: ['#56d364', '#58a6ff', '#d29922', '#ff7b72', '#bc8cff'],
+      borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' } },
+      y: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' }, max: 50 }
+    }
+  }
+});
+
+// 错误恢复图
+const errorCtx = document.getElementById('errorChart').getContext('2d');
+new Chart(errorCtx, {
+  type: 'bar',
+  data: {
+    labels: ['ContextOverflow', 'TokenLimit', 'ToolExecution', 'ModelError', 'Permission', 'Timeout'],
+    datasets: [
+      {
+        label: '发生频率 (%)',
+        data: [25, 10, 35, 15, 10, 5],
+        backgroundColor: 'rgba(255,123,114,0.6)',
+        borderColor: '#ff7b72',
+        borderWidth: 2,
+      },
+      {
+        label: '自动恢复成功率 (%)',
+        data: [95, 90, 75, 85, 60, 70],
+        backgroundColor: 'rgba(63,185,80,0.6)',
+        borderColor: '#3fb950',
+        borderWidth: 2,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#c9d1d9', font: { size: 13 } } } },
+    scales: {
+      x: { ticks: { color: '#8b949e', font: { size: 11 } }, grid: { color: 'rgba(48,54,61,0.5)' } },
+      y: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' }, max: 100 }
+    }
+  }
+});
+</script>
+<script>
+// Dropdown
+const dropBtn = document.getElementById('detailDropBtn');
+const dropPanel = document.getElementById('detailDropPanel');
+dropBtn.addEventListener('click', () => {
+  dropPanel.classList.toggle('open');
+  dropBtn.classList.toggle('open');
+});
+document.addEventListener('click', e => {
+  if (!dropBtn.contains(e.target) && !dropPanel.contains(e.target)) {
+    dropPanel.classList.remove('open');
+    dropBtn.classList.remove('open');
+  }
+});
+
+// Sidebar active link on scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      const id = entry.target.id;
+      const active = document.querySelector(`.nav-item[href="#${id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -60% 0px' });
+document.querySelectorAll('.section[id]').forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

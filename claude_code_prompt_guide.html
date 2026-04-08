@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Prompt 工程指南</title>
+<style>
+:root {
+  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+  --border: #30363d; --text: #e6edf3; --text2: #8b949e;
+  --accent: #58a6ff; --accent2: #79c0ff;
+  --green: #3fb950; --yellow: #d29922; --orange: #f0883e;
+  --red: #f85149; --purple: #bc8cff; --pink: #ff7b72;
+  --sidebar-w: 260px;
+  --topnav-h: 60px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif; font-size: 14px; line-height: 1.7; }
+.topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    height: var(--topnav-h);
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+}
+.topnav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 700; color: #fff; text-decoration: none;
+    flex-shrink: 0; border-radius: 6px; transition: background 0.15s;
+    padding: 4px 8px; margin: -4px -8px;
+}
+.topnav-logo:hover { background: var(--bg3); text-decoration: none; }
+.topnav-logo .logo-icon { font-size: 20px; }
+.topnav-logo .logo-badge {
+    font-size: 10px; background: var(--accent); color: #000;
+    padding: 1px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;
+}
+.topnav-links { display: flex; align-items: center; gap: 4px; }
+.topnav-links a {
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+}
+.topnav-links a:hover { color: var(--text); background: var(--bg3); }
+.topnav-links a.active { color: var(--accent); }
+.topnav-right { display: flex; align-items: center; gap: 12px; }
+.version-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--green); font-weight: 600;
+}
+.dropdown { position: relative; }
+.dropdown-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+    cursor: pointer; border: none; background: none;
+    font-family: inherit;
+}
+.dropdown-btn:hover, .dropdown-btn.open { color: var(--text); background: var(--bg3); }
+.dropdown-btn .arrow { font-size: 10px; transition: transform 0.2s; }
+.dropdown-btn.open .arrow { transform: rotate(180deg); }
+.dropdown-panel {
+    display: none;
+    position: absolute; top: calc(100% + 8px); right: 0;
+    min-width: 380px;
+    background: rgba(13,17,23,0.97);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    z-index: 2000;
+}
+.dropdown-panel.open { display: block; }
+.dropdown-group { margin-bottom: 12px; }
+.dropdown-group:last-child { margin-bottom: 0; }
+.dropdown-group-title {
+    font-size: 10px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0 8px 6px;
+}
+.dropdown-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--text2);
+    text-decoration: none; transition: all 0.15s;
+}
+.dropdown-item:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
+.dropdown-item.active { color: var(--accent); background: rgba(88,166,255,0.08); }
+.dropdown-item .di-icon { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+.dropdown-item .di-text { flex: 1; }
+.dropdown-sep { height: 1px; background: var(--border); margin: 8px 0; }
+.layout { display: flex; padding-top: var(--topnav-h); min-height: 100vh; }
+#sidebar { width: var(--sidebar-w); height: calc(100vh - var(--topnav-h)); background: var(--bg2); border-right: 1px solid var(--border); position: fixed; top: var(--topnav-h); left: 0; overflow-y: auto; padding: 16px 0 40px; z-index: 100; }
+#sidebar .logo { padding: 0 16px 16px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+#sidebar .logo a {
+    display: block; text-decoration: none; border-radius: 6px;
+    transition: background 0.15s; padding: 4px 0;
+}
+#sidebar .logo a:hover { background: var(--bg3); text-decoration: none; }
+#sidebar .logo h2 { font-size: 13px; font-weight: 700; color: var(--accent); }
+#sidebar .logo p { font-size: 11px; color: var(--text2); margin-top: 4px; }
+#sidebar nav a { display: block; padding: 5px 16px; color: var(--text2); text-decoration: none; font-size: 12px; border-left: 2px solid transparent; transition: all 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#sidebar nav a:hover { color: var(--text); background: var(--bg3); border-left-color: var(--accent); }
+#sidebar nav a.sidebar-link.active { color: var(--accent); background: rgba(88,166,255,0.08); border-left-color: var(--accent); }
+#sidebar nav .section-label { padding: 10px 16px 4px; font-size: 10px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
+#main { margin-left: var(--sidebar-w); flex: 1; padding: 32px 48px 60px; min-width: 0; }
+h1 { font-size: 28px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+h2 { font-size: 20px; font-weight: 700; color: var(--accent); margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 16px; font-weight: 600; color: var(--accent2); margin: 28px 0 12px; }
+h4 { font-size: 14px; font-weight: 600; color: var(--text); margin: 20px 0 8px; }
+p { margin-bottom: 12px; }
+ul, ol { padding-left: 20px; margin-bottom: 12px; }
+li { margin-bottom: 4px; }
+strong { color: var(--text); font-weight: 600; }
+code { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; color: var(--pink); }
+pre { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; overflow-x: auto; margin: 12px 0 20px; position: relative; }
+pre code { background: none; border: none; padding: 0; color: var(--text); font-size: 13px; line-height: 1.6; }
+.table-wrap { overflow-x: auto; margin: 12px 0 20px; border-radius: 8px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--bg3); color: var(--text2); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13px; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(88,166,255,0.04); }
+.callout { border-radius: 8px; padding: 14px 18px; margin: 16px 0; border-left: 3px solid; font-size: 13px; }
+.callout-info { background: rgba(88,166,255,0.08); border-color: var(--accent); }
+.callout-warn { background: rgba(210,153,34,0.08); border-color: var(--yellow); }
+.callout-tip { background: rgba(63,185,80,0.08); border-color: var(--green); }
+.callout-danger { background: rgba(248,81,73,0.08); border-color: var(--red); }
+.callout-title { font-weight: 700; margin-bottom: 4px; }
+.pattern-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+.pattern-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+.pattern-card .num { font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.pattern-card h4 { margin: 0 0 6px; font-size: 14px; color: var(--text); }
+.pattern-card p { font-size: 12px; color: var(--text2); margin: 0; }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+.compare-card { border-radius: 10px; padding: 16px 18px; }
+.compare-bad { background: rgba(248,81,73,0.06); border: 1px solid rgba(248,81,73,0.2); }
+.compare-good { background: rgba(63,185,80,0.06); border: 1px solid rgba(63,185,80,0.2); }
+.compare-label { font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+.compare-bad .compare-label { color: var(--red); }
+.compare-good .compare-label { color: var(--green); }
+.checklist { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+.checklist-item { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.checklist-item:last-child { border-bottom: none; }
+.check-box { width: 16px; height: 16px; border: 2px solid var(--border); border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.page-header { padding-bottom: 24px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.meta { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+.meta-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+.meta-item span { color: var(--text); }
+.toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0 32px; }
+.toc-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; color: var(--text2); font-size: 13px; transition: all 0.15s; }
+.toc-item:hover { color: var(--text); border-color: var(--accent); background: var(--bg3); text-decoration: none; }
+.toc-num { font-size: 11px; font-weight: 700; color: var(--accent); min-width: 24px; }
+hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+@media (max-width: 1024px) {
+    .topnav-links { display: none; }
+    #main { padding: 24px 24px 48px; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .toc-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+    #sidebar { display: none; }
+    #main { margin-left: 0; padding: 20px 16px 48px; }
+    .dropdown-panel { right: -16px; min-width: calc(100vw - 32px); }
+    .pattern-grid, .compare-grid, .toc-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">
+    <span class="logo-icon">⚡</span>
+    <span>Claude Code</span>
+    <span class="logo-badge">深度解析</span>
+  </a>
+  <div class="topnav-links">
+    <a href="#">技术模块</a>
+    <a href="#">使用指南</a>
+    <div class="dropdown">
+      <button class="dropdown-btn" id="detailDropBtn">
+        详细拆解 <span class="arrow">▾</span>
+      </button>
+      <div class="dropdown-panel" id="detailDropPanel">
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">🔧 核心引擎</div>
+          <a href="claude_code_harness.html" class="dropdown-item"><span class="di-icon">🔧</span><span class="di-text">Harness 执行引擎</span></a>
+          <a href="claude_code_context.html" class="dropdown-item"><span class="di-icon">🧠</span><span class="di-text">Context 上下文系统</span></a>
+          <a href="claude_code_memory.html" class="dropdown-item"><span class="di-icon">💾</span><span class="di-text">Memory 记忆系统</span></a>
+          <a href="claude_code_tools.html" class="dropdown-item"><span class="di-icon">🛠️</span><span class="di-text">Tool System 工具系统</span></a>
+          <a href="claude_code_agent_loop.html" class="dropdown-item"><span class="di-icon">🔄</span><span class="di-text">Agent Loop 执行循环</span></a>
+          <a href="claude_code_multi_agent.html" class="dropdown-item"><span class="di-icon">🤝</span><span class="di-text">Multi-Agent 多智能体</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📖 使用指南</div>
+          <a href="claude_code_user_manual.html" class="dropdown-item"><span class="di-icon">📖</span><span class="di-text">用户完整手册</span></a>
+          <a href="claude_code_prompt_guide.html" class="dropdown-item active"><span class="di-icon">✍️</span><span class="di-text">Prompt 工程指南</span></a>
+          <a href="claude_code_cases.html" class="dropdown-item"><span class="di-icon">🚀</span><span class="di-text">实战案例库</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📊 深度报告</div>
+          <a href="claude_code_comparison.html" class="dropdown-item"><span class="di-icon">⚖️</span><span class="di-text">工具对比分析</span></a>
+          <a href="claude_code_report.html" class="dropdown-item"><span class="di-icon">🏗️</span><span class="di-text">架构深度拆解报告</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="topnav-right">
+    <span class="version-badge">✦ 2026 Q2</span>
+  </div>
+</nav>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div class="logo">
+    <a href="index.html">
+      <h2>Prompt 工程指南</h2>
+      <p>v1.0 · 2026年4月</p>
+    </a>
+  </div>
+  <nav>
+    <div class="section-label">核心理念</div>
+    <a href="#contract" class="sidebar-link">01 · Prompt 的本质</a>
+    <div class="section-label">10种模式</div>
+    <a href="#patterns" class="sidebar-link">02 · 10种核心模式</a>
+    <a href="#p1" class="sidebar-link">模式1 · 角色专家</a>
+    <a href="#p2" class="sidebar-link">模式2 · 分步执行</a>
+    <a href="#p3" class="sidebar-link">模式3 · 约束优先</a>
+    <a href="#p4" class="sidebar-link">模式4 · 示例驱动</a>
+    <a href="#p5" class="sidebar-link">模式5 · 输出格式控制</a>
+    <a href="#p6" class="sidebar-link">模式6 · 渐进式探索</a>
+    <a href="#p7" class="sidebar-link">模式7 · TDD驱动</a>
+    <a href="#p8" class="sidebar-link">模式8 · 对比分析</a>
+    <a href="#p9" class="sidebar-link">模式9 · 调试侦探</a>
+    <a href="#p10" class="sidebar-link">模式10 · 文档生成</a>
+    <div class="section-label">CLAUDE.md</div>
+    <a href="#claudemd" class="sidebar-link">03 · CLAUDE.md 指南</a>
+    <a href="#claudemd-types" class="sidebar-link">六种类型</a>
+    <a href="#claudemd-antipatterns" class="sidebar-link">反模式</a>
+    <div class="section-label">模板库</div>
+    <a href="#templates" class="sidebar-link">04 · 任务模板库</a>
+    <div class="section-label">修复手册</div>
+    <a href="#fixes" class="sidebar-link">05 · 失败案例修复</a>
+    <div class="section-label">进阶</div>
+    <a href="#context" class="sidebar-link">06 · 上下文管理</a>
+    <a href="#compare" class="sidebar-link">07 · 工具配置对比</a>
+    <a href="#xml" class="sidebar-link">08 · XML 结构化</a>
+    <a href="#checklist" class="sidebar-link">自检清单</a>
+  </nav>
+</aside>
+
+<main id="main">
+  <div class="page-header">
+    <h1>Claude Code Prompt 工程指南</h1>
+    <div class="meta">
+      <div class="meta-item">📅 <span>2026年4月7日</span></div>
+      <div class="meta-item">🎯 <span>10种核心模式</span></div>
+      <div class="meta-item">🔧 <span>6种 CLAUDE.md 类型</span></div>
+      <div class="meta-item">🛠️ <span>7类任务模板</span></div>
+    </div>
+  </div>
+
+  <div class="toc-grid">
+    <a href="#contract" class="toc-item"><span class="toc-num">01</span>Prompt 的本质</a>
+    <a href="#patterns" class="toc-item"><span class="toc-num">02</span>10种核心模式</a>
+    <a href="#claudemd" class="toc-item"><span class="toc-num">03</span>CLAUDE.md 指南</a>
+    <a href="#templates" class="toc-item"><span class="toc-num">04</span>任务模板库</a>
+    <a href="#fixes" class="toc-item"><span class="toc-num">05</span>失败案例修复</a>
+    <a href="#context" class="toc-item"><span class="toc-num">06</span>上下文管理</a>
+    <a href="#compare" class="toc-item"><span class="toc-num">07</span>工具配置对比</a>
+    <a href="#xml" class="toc-item"><span class="toc-num">08</span>XML 结构化</a>
+  </div>
+
+  <!-- 01 -->
+  <h2 id="contract">01 · Prompt 的本质：写合同，不是聊天</h2>
+  <p>大多数人用 Claude Code 效果差，根本原因是把它当搜索引擎或聊天机器人用。</p>
+
+  <div class="callout callout-info">
+    <div class="callout-title">💡 正确心智模型</div>
+    Claude Code 是一个极其聪明但刚入职的工程师。他技术能力极强，但不了解你的项目背景、偏好和禁忌。<strong>好的 Prompt = 一份清晰的工作合同</strong>。
+  </div>
+
+  <h3>合同式 Prompt 四要素</h3>
+  <div class="pattern-grid">
+    <div class="pattern-card">
+      <div class="num">要素 1</div>
+      <h4>🎭 角色</h4>
+      <p>他应该扮演什么专家？"你是有 10 年经验的 TypeScript 后端工程师"</p>
+    </div>
+    <div class="pattern-card">
+      <div class="num">要素 2</div>
+      <h4>📦 交付物</h4>
+      <p>具体要什么？"为 UserService 添加邮箱验证功能，包含单元测试"</p>
+    </div>
+    <div class="pattern-card">
+      <div class="num">要素 3</div>
+      <h4>🚫 约束</h4>
+      <p>不能做什么？"不要修改现有 User 实体，不要引入新 npm 包"</p>
+    </div>
+    <div class="pattern-card">
+      <div class="num">要素 4</div>
+      <h4>✅ 验收标准</h4>
+      <p>怎么算完成？"所有测试通过，无 TypeScript 错误，功能本地可运行"</p>
+    </div>
+  </div>
+
+  <h3>完整合同式 Prompt 示例</h3>
+  <pre><code>角色：你是一个有 10 年经验的 TypeScript 后端工程师，熟悉 NestJS 和 PostgreSQL。
+
+任务：为 UserService 添加邮箱验证功能。
+
+要求：
+- 发送验证邮件使用 nodemailer，不要用第三方服务
+- 验证 token 存储在 Redis，有效期 24 小时
+- 验证成功后更新 user.emailVerified 字段
+- 必须包含单元测试，覆盖率 > 90%
+
+约束：
+- 不要修改现有的 User 实体结构
+- 不要引入新的 npm 包（除非必要）
+- 代码风格遵循项目现有规范
+
+验收标准：
+- 所有测试通过
+- 没有 TypeScript 错误
+- 功能在本地可以正常运行</code></pre>
+
+  <!-- 02 -->
+  <h2 id="patterns">02 · 10种核心 Prompt 模式</h2>
+
+  <h3 id="p1">模式 1：角色专家模式（Role Expert）</h3>
+  <div class="callout callout-tip">
+    <div class="callout-title">适用场景</div>
+    需要特定领域专业知识时，给 Claude 一个明确的专家身份
+  </div>
+  <pre><code>你是一个专注于 Web 安全的高级工程师，有 OWASP Top 10 的深度经验。
+请审查 src/auth/ 目录下的所有代码，找出潜在的安全漏洞。
+对每个问题：说明漏洞类型、风险等级（高/中/低）、具体位置、修复方案。</code></pre>
+
+  <h3 id="p2">模式 2：分步执行模式（Step-by-Step）</h3>
+  <div class="callout callout-tip">
+    <div class="callout-title">适用场景</div>
+    复杂任务，防止 Claude 一次性做太多出错，每步确认后再继续
+  </div>
+  <pre><code>请按以下步骤完成支付模块重构，每步完成后告诉我，等我确认再继续：
+
+步骤 1：分析现有 payment.service.ts，列出所有需要重构的问题
+步骤 2：设计新的接口和类型定义
+步骤 3：实现新的 PaymentService
+步骤 4：迁移现有测试并补充新测试
+步骤 5：更新所有调用方
+
+现在开始步骤 1。</code></pre>
+
+  <h3 id="p3">模式 3：约束优先模式（Constraint-First）</h3>
+  <div class="callout callout-tip">
+    <div class="callout-title">适用场景</div>
+    有明确禁区时，先说不能做什么，Claude 会把约束放在最高优先级
+  </div>
+  <pre><code>重要约束（必须遵守）：
+- 不要修改 src/legacy/ 目录下的任何文件
+- 不要删除任何现有的 API 端点
+- 不要升级 package.json 中的依赖版本
+
+在以上约束下，请将 UserController 从 Express 迁移到 NestJS。</code></pre>
+
+  <h3 id="p4">模式 4：示例驱动模式（Few-Shot）</h3>
+  <div class="callout callout-tip">
+    <div class="callout-title">适用场景</div>
+    需要特定格式或风格时，给 2-3 个例子比描述更有效
+  </div>
+  <pre><code>请为以下函数写 JSDoc 注释，风格参考这个例子：
+
+【示例】
+/**
+ * 根据用户 ID 获取用户信息
+ * @param {string} userId - 用户唯一标识符
+ * @returns {Promise&lt;User | null&gt;} 用户对象，不存在时返回 null
+ * @throws {DatabaseError} 数据库连接失败时抛出
+ * @example
+ * const user = await getUserById('user_123');
+ */
+
+现在请用同样的风格为 src/services/ 目录下所有没有注释的函数添加 JSDoc。</code></pre>
+
+  <h3 id="p5">模式 5：输出格式控制模式（Output Control）</h3>
+  <div class="callout callout-tip">
+    <div class="callout-title">适用场景</div>
+    需要结构化输出，用于后续脚本处理
+  </div>
+  <pre><code>分析 src/ 目录下所有 TypeScript 文件，找出所有 TODO 注释。
+
+输出格式（严格遵守 JSON）：
+{
+  "todos": [
+    {
+      "file": "相对路径",
+      "line": 行号,
+      "content": "TODO 内容",
+      "priority": "high|medium|low",
+      "estimated_hours": 预估工时
+    }
+  ],
+  "summary": {
+    "total": 总数,
+    "by_priority": { "high": 0, "medium": 0, "low": 0 }
+  }
+}</code></pre>
+
+  <h3 id="p6">模式 6：渐进式探索模式（Progressive Exploration）</h3>
+  <pre><code>我刚接手这个项目，请帮我：
+
+第一步：只读取代码，不做任何修改
+- 分析项目整体架构
+- 找出核心业务逻辑所在的文件
+- 识别技术债务和潜在问题
+
+第二步：生成一份架构文档（docs/architecture.md）
+
+第三步：列出你建议优先处理的 5 个问题，按影响程度排序
+
+先做第一步，完成后告诉我。</code></pre>
+
+  <h3 id="p7">模式 7：TDD 驱动模式（Test-Driven）</h3>
+  <pre><code>请用 TDD 方式实现购物车模块：
+
+1. 先写测试用例（不要写实现代码）
+   - 覆盖所有正常流程
+   - 覆盖边界条件（空购物车、超出库存、价格为0等）
+   - 覆盖错误场景
+
+2. 给我看测试代码，等我确认
+
+3. 然后写最小实现让测试通过
+
+4. 最后重构优化（保持测试通过）</code></pre>
+
+  <h3 id="p8">模式 8：对比分析模式（Compare &amp; Decide）</h3>
+  <pre><code>我需要为项目选择状态管理方案，请对比以下三个选项：
+- Zustand / Jotai / Redux Toolkit
+
+对比维度：
+1. 学习曲线（1-5分）
+2. 与我们项目（React 18 + TypeScript + Next.js 14）的契合度
+3. 性能表现
+4. 社区活跃度
+5. 迁移成本（从现有 Context API 迁移）
+
+最后给出你的推荐和理由。</code></pre>
+
+  <h3 id="p9">模式 9：调试侦探模式（Debug Detective）</h3>
+  <pre><code>这个 bug 让我困扰了 2 天，请帮我系统性地排查：
+
+现象：用户登录后，偶发性地（约 10% 概率）出现 401 错误，刷新后恢复正常
+
+已排查：
+- JWT token 生成逻辑（看起来正常）
+- 前端 token 存储（localStorage，看起来正常）
+
+请：
+1. 列出所有可能的原因（不要遗漏）
+2. 按可能性排序
+3. 为每个原因提供验证方法
+4. 从最可能的原因开始，帮我逐一排查</code></pre>
+
+  <h3 id="p10">模式 10：文档生成模式（Doc Generator）</h3>
+  <pre><code>请为这个项目生成完整的 API 文档：
+
+要求：
+- 格式：OpenAPI 3.0 YAML
+- 扫描 src/controllers/ 下所有控制器
+- 从代码和注释中提取接口信息
+- 为每个接口生成：描述、参数、请求体、响应示例、错误码
+- 保存到 docs/api.yaml
+
+同时生成一份 Markdown 版本（docs/api.md），面向前端开发者，语言友好。</code></pre>
+
+  <!-- 03 CLAUDE.md -->
+  <h2 id="claudemd">03 · CLAUDE.md 写法完全指南</h2>
+
+  <h3 id="claudemd-types">六种 CLAUDE.md 类型</h3>
+  <div class="pattern-grid">
+    <div class="pattern-card">
+      <div class="num">类型 A</div>
+      <h4>🚫 约束型</h4>
+      <p>专注于告诉 Claude 不能做什么，适合有历史包袱的项目</p>
+    </div>
+    <div class="pattern-card">
+      <div class="num">类型 B</div>
+      <h4>🎭 角色型</h4>
+      <p>给 Claude 一个明确的专家身份，适合专业领域项目</p>
+    </div>
+    <div class="pattern-card">
+      <div class="num">类型 C</div>
+      <h4>📋 流程型</h4>
+      <p>定义工作流程，适合有严格开发规范的团队</p>
+    </div>
+    <div class="pattern-card">
+      <div class="num">类型 D</div>
+      <h4>📖 上下文型</h4>
+      <p>提供项目背景，适合复杂业务系统</p>
+    </div>
+    <div class="pattern-card">
+      <div class="num">类型 E</div>
+      <h4>🔧 工具型</h4>
+      <p>告诉 Claude 项目的工具链，减少猜测</p>
+    </div>
+    <div class="pattern-card">
+      <div class="num">类型 F ⭐</div>
+      <h4>🔀 混合型（推荐）</h4>
+      <p>综合以上类型，200 行以内的完整配置</p>
+    </div>
+  </div>
+
+  <h4>混合型 CLAUDE.md 模板（推荐）</h4>
+  <pre><code># [项目名] Claude Code 配置
+
+## 项目概述
+[一句话描述项目]
+
+## 技术栈
+- 运行时：Node.js 20 LTS
+- 框架：NestJS 10
+- 数据库：PostgreSQL 15 + TypeORM
+
+## 常用命令
+- 启动：`npm run start:dev`
+- 测试：`npm test`
+- 构建：`npm run build`
+
+## 代码规范
+- 使用 TypeScript 严格模式
+- 所有新函数必须有单元测试
+- 禁止使用 any 类型
+
+## 重要约束
+- 不要修改 src/legacy/ 目录
+- 不要直接操作数据库（必须通过 Repository 层）
+- 不要硬编码任何配置值
+
+## 已知问题（暂时不要修改）
+- auth.service.ts 第 142 行：已知 JWT 刷新 bug，正在修复</code></pre>
+
+  <h3 id="claudemd-antipatterns">5 个反模式</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>反模式</th><th>问题</th><th>修复方法</th></tr>
+      <tr><td>超过 200 行</td><td>Claude 遵循质量下降</td><td>精简到核心约束，细节放子目录 CLAUDE.md</td></tr>
+      <tr><td>写"尽量"、"最好"</td><td>模糊指令，Claude 会忽略</td><td>改为"必须"、"禁止"等明确词</td></tr>
+      <tr><td>只写技术栈，不写约束</td><td>Claude 不知道边界在哪</td><td>加入禁止操作和已知问题</td></tr>
+      <tr><td>复制粘贴 README</td><td>信息冗余，稀释重要内容</td><td>只写 Claude 需要知道的</td></tr>
+      <tr><td>从不更新</td><td>项目演进后 CLAUDE.md 过时</td><td>每次重大重构后更新</td></tr>
+    </table>
+  </div>
+
+  <!-- 04 模板库 -->
+  <h2 id="templates">04 · 任务类型 Prompt 模板库</h2>
+
+  <h3>代码重构</h3>
+  <pre><code>请重构 [文件/模块]，目标：[重构目标]
+
+当前问题：
+- [问题1]
+- [问题2]
+
+重构要求：
+- 保持所有现有测试通过
+- 保持对外接口不变（[列出接口]）
+- 遵循 [设计模式/原则]
+
+请先分析现有代码，给我重构方案，等我确认后再执行。</code></pre>
+
+  <h3>单元测试</h3>
+  <pre><code>请为 [文件] 编写完整的单元测试。
+
+测试框架：[Jest/Vitest/Mocha]
+覆盖要求：
+- 所有 public 方法
+- 正常流程 + 边界条件 + 错误场景
+- 覆盖率目标：> 90%
+
+注意：[项目特殊约定，如数据库 mock 方式]</code></pre>
+
+  <h3>Bug 修复</h3>
+  <pre><code>Bug 描述：[现象]
+
+复现步骤：
+1. [步骤1]
+2. [步骤2]
+
+期望行为：[应该发生什么]
+实际行为：[实际发生什么]
+错误日志：[粘贴错误日志]
+
+请：
+1. 定位根本原因
+2. 提出修复方案（如有多个方案，说明优劣）
+3. 实现修复
+4. 添加防止回归的测试</code></pre>
+
+  <h3>代码审查</h3>
+  <pre><code>请对以下代码进行严格的代码审查：
+[粘贴代码 或 指定文件路径]
+
+审查维度：
+1. 正确性：逻辑是否正确，有无 bug
+2. 安全性：有无安全漏洞（SQL 注入、XSS、权限绕过等）
+3. 性能：有无明显性能问题
+4. 可维护性：代码是否清晰，命名是否合理
+
+输出格式：
+- 每个问题：[严重程度] 文件:行号 - 问题描述 - 修复建议
+- 最后给出总体评分（1-10）和主要改进建议</code></pre>
+
+  <h3>性能优化</h3>
+  <pre><code>这个接口响应时间过长（平均 [X]ms，目标 [Y]ms）：
+[接口路径或代码]
+
+请：
+1. 分析可能的性能瓶颈（基于代码分析，不要猜）
+2. 按影响程度排序
+3. 对每个瓶颈提供优化方案和预期收益
+4. 从收益最大的开始实施
+
+约束：
+- 不能改变接口的输入输出格式
+- 不能引入新的基础设施</code></pre>
+
+  <!-- 05 失败案例 -->
+  <h2 id="fixes">05 · 常见失败 Prompt 修复手册</h2>
+
+  <h3>失败案例 1：太模糊</h3>
+  <div class="compare-grid">
+    <div class="compare-card compare-bad">
+      <div class="compare-label">❌ 失败 Prompt</div>
+      <pre style="margin:0;border:none;padding:8px 0;background:none;"><code style="color:var(--text2);">帮我优化一下这个项目的代码</code></pre>
+    </div>
+    <div class="compare-card compare-good">
+      <div class="compare-label">✅ 修复后</div>
+      <pre style="margin:0;border:none;padding:8px 0;background:none;"><code style="color:var(--text2);">请对 src/services/user.service.ts 进行代码质量优化：
+- 目标：提高可读性和可维护性
+- 不要改变任何公共方法的签名
+- 不要改变业务逻辑
+- 优化后运行 npm test 确保测试通过
+- 列出每处修改和修改原因</code></pre>
+    </div>
+  </div>
+
+  <h3>失败案例 2：任务太大</h3>
+  <div class="compare-grid">
+    <div class="compare-card compare-bad">
+      <div class="compare-label">❌ 失败 Prompt</div>
+      <pre style="margin:0;border:none;padding:8px 0;background:none;"><code style="color:var(--text2);">帮我把整个项目从 JavaScript 迁移到 TypeScript</code></pre>
+    </div>
+    <div class="compare-card compare-good">
+      <div class="compare-label">✅ 修复后</div>
+      <pre style="margin:0;border:none;padding:8px 0;background:none;"><code style="color:var(--text2);">我需要将项目从 JS 迁移到 TS，请先帮我制定迁移计划：
+
+1. 分析项目规模（文件数量、复杂度）
+2. 识别迁移风险点
+3. 制定分阶段方案（每阶段不超过 20 个文件）
+4. 估算每阶段工时
+
+先只做计划，不要修改任何代码。</code></pre>
+    </div>
+  </div>
+
+  <h3>失败案例 3：用了攻击性语言</h3>
+  <div class="compare-grid">
+    <div class="compare-card compare-bad">
+      <div class="compare-label">❌ 失败 Prompt（新版 Claude 会表现更差）</div>
+      <pre style="margin:0;border:none;padding:8px 0;background:none;"><code style="color:var(--text2);">你必须！！！绝对不能！！！修改 legacy 目录！！！
+这非常非常重要！！！</code></pre>
+    </div>
+    <div class="compare-card compare-good">
+      <div class="compare-label">✅ 修复后</div>
+      <pre style="margin:0;border:none;padding:8px 0;background:none;"><code style="color:var(--text2);">重要约束：请不要修改 src/legacy/ 目录下的任何文件。
+原因：这些文件有外部系统依赖，修改会导致生产事故。</code></pre>
+    </div>
+  </div>
+
+  <h3>失败案例 4：没有验收标准</h3>
+  <div class="compare-grid">
+    <div class="compare-card compare-bad">
+      <div class="compare-label">❌ 失败 Prompt</div>
+      <pre style="margin:0;border:none;padding:8px 0;background:none;"><code style="color:var(--text2);">帮我写一个用户认证系统</code></pre>
+    </div>
+    <div class="compare-card compare-good">
+      <div class="compare-label">✅ 修复后</div>
+      <pre style="margin:0;border:none;padding:8px 0;background:none;"><code style="color:var(--text2);">请实现用户认证系统，完成标准：
+
+功能：注册、登录、刷新Token、登出、忘记密码
+质量：测试覆盖率 > 85%，有 Swagger 文档
+安全：bcrypt 加密，登录失败5次锁定30分钟</code></pre>
+    </div>
+  </div>
+
+  <!-- 06 上下文管理 -->
+  <h2 id="context">06 · 上下文管理策略</h2>
+
+  <h3>上下文的黄金法则</h3>
+  <div class="callout callout-warn">
+    <div class="callout-title">⚠️ 重要</div>
+    <strong>重要信息放在 Prompt 开头</strong>，Claude 对开头和结尾的注意力最强，中间容易"遗忘"。
+  </div>
+
+  <h3>长会话管理</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>会话长度</th><th>建议操作</th></tr>
+      <tr><td>&lt; 30 轮</td><td>正常使用</td></tr>
+      <tr><td>30-60 轮</td><td>使用 <code>/compact 保留[关键信息]</code></td></tr>
+      <tr><td>&gt; 60 轮</td><td>开新会话，用 CLAUDE.md 传递上下文</td></tr>
+      <tr><td>跨天任务</td><td>用 <code>claude --continue</code> 恢复，先让 Claude 总结进度</td></tr>
+    </table>
+  </div>
+
+  <h3>跨会话上下文传递</h3>
+  <pre><code># 结束会话前，让 Claude 生成上下文摘要
+&gt; 请生成一份工作摘要，包含：
+  1. 已完成的工作
+  2. 当前状态
+  3. 下一步计划
+  4. 需要注意的问题
+  保存到 .claude/session-notes.md
+
+# 下次开始时
+&gt; 请先阅读 .claude/session-notes.md，了解上次的工作进度，然后继续。</code></pre>
+
+  <!-- 07 工具对比 -->
+  <h2 id="compare">07 · 与 Cursor Rules / Copilot Instructions 对比</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>特性</th><th>Claude Code CLAUDE.md</th><th>Cursor .cursorrules</th><th>Copilot Instructions</th></tr>
+      <tr><td>作用范围</td><td>整个会话</td><td>代码补全 + Chat</td><td>Chat + 代码补全</td></tr>
+      <tr><td>支持多级</td><td>✅ 全局/项目/子目录</td><td>❌ 仅项目级</td><td>❌ 仅仓库级</td></tr>
+      <tr><td>自动加载</td><td>✅ 每次会话</td><td>✅ 自动</td><td>✅ 自动</td></tr>
+      <tr><td>支持命令</td><td>✅ 可定义工作流</td><td>❌ 仅规则</td><td>❌ 仅规则</td></tr>
+      <tr><td>长度限制</td><td>建议 200 行</td><td>建议 500 行</td><td>建议 300 行</td></tr>
+    </table>
+  </div>
+
+  <!-- 08 XML -->
+  <h2 id="xml">08 · 高级技巧：XML 结构化 Prompt</h2>
+  <p>对于复杂任务，使用 XML 标签可以显著提高 Claude 的理解准确度：</p>
+  <pre><code>&lt;task&gt;
+  &lt;role&gt;高级 TypeScript 工程师，专注于性能优化&lt;/role&gt;
+  
+  &lt;context&gt;
+    这是一个电商平台的订单服务，日均处理 10 万笔订单。
+    当前 getOrderList 接口平均响应时间 800ms，目标 200ms。
+  &lt;/context&gt;
+  
+  &lt;constraints&gt;
+    &lt;must_not&gt;修改数据库 schema&lt;/must_not&gt;
+    &lt;must_not&gt;改变接口的输入输出格式&lt;/must_not&gt;
+    &lt;must&gt;保持所有现有测试通过&lt;/must&gt;
+    &lt;must&gt;添加性能测试&lt;/must&gt;
+  &lt;/constraints&gt;
+  
+  &lt;deliverables&gt;
+    &lt;item&gt;优化后的代码&lt;/item&gt;
+    &lt;item&gt;性能对比报告（优化前后）&lt;/item&gt;
+  &lt;/deliverables&gt;
+  
+  &lt;input&gt;
+    请分析 src/order/order.service.ts 中的 getOrderList 方法
+  &lt;/input&gt;
+&lt;/task&gt;</code></pre>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>场景</th><th>推荐方式</th></tr>
+      <tr><td>简单任务（&lt; 3 个要求）</td><td>普通文本</td></tr>
+      <tr><td>中等复杂度</td><td>Markdown 列表</td></tr>
+      <tr><td>高度复杂（多约束、多交付物）</td><td>XML 结构</td></tr>
+      <tr><td>需要精确解析的输出</td><td>XML + JSON 输出格式</td></tr>
+    </table>
+  </div>
+
+  <!-- 自检清单 -->
+  <h2 id="checklist">Prompt 质量自检清单</h2>
+  <p>在发送 Prompt 前，检查以下项目：</p>
+  <div class="checklist">
+    <div class="checklist-item"><div class="check-box"></div><span><strong>角色</strong>：是否指定了 Claude 应该扮演的专家角色？</span></div>
+    <div class="checklist-item"><div class="check-box"></div><span><strong>任务</strong>：任务描述是否具体，没有歧义？</span></div>
+    <div class="checklist-item"><div class="check-box"></div><span><strong>约束</strong>：是否列出了所有禁止操作？</span></div>
+    <div class="checklist-item"><div class="check-box"></div><span><strong>验收</strong>：是否定义了完成标准？</span></div>
+    <div class="checklist-item"><div class="check-box"></div><span><strong>格式</strong>：是否指定了输出格式？</span></div>
+    <div class="checklist-item"><div class="check-box"></div><span><strong>规模</strong>：任务是否太大？是否需要拆分？</span></div>
+    <div class="checklist-item"><div class="check-box"></div><span><strong>上下文</strong>：是否提供了必要的背景信息？</span></div>
+    <div class="checklist-item"><div class="check-box"></div><span><strong>不确定性</strong>：是否告诉 Claude 遇到不确定时怎么处理？</span></div>
+  </div>
+
+  <hr>
+  <p style="text-align:center; color: var(--text2); font-size: 12px; padding: 20px 0;">
+    Claude Code Prompt 工程指南 · 2026年4月7日 · 10种模式 · 6种CLAUDE.md类型 · 7类任务模板
+  </p>
+</main>
+</div><!-- /.layout -->
+</body>
+<script>
+// ── Detail dropdown ──
+(function() {
+  var btn = document.getElementById('detailDropBtn');
+  var panel = document.getElementById('detailDropPanel');
+  if (!btn || !panel) return;
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    panel.classList.toggle('open');
+    btn.classList.toggle('open');
+  });
+  document.addEventListener('click', function() {
+    panel.classList.remove('open');
+    btn.classList.remove('open');
+  });
+  panel.addEventListener('click', function(e) {
+    e.stopPropagation();
+  });
+})();
+
+// ── Sidebar active on scroll (IntersectionObserver) ──
+(function() {
+  const links = document.querySelectorAll('.sidebar-link');
+  if (!links.length) return;
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          links.forEach(l => l.classList.remove('active'));
+          const id = entry.target.id;
+          const active = document.querySelector('.sidebar-link[href="#' + id + '"]');
+          if (active) active.classList.add('active');
+        }
+      });
+    },
+    { rootMargin: '-10% 0px -80% 0px', threshold: 0 }
+  );
+  links.forEach(link => {
+    const id = link.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) observer.observe(el);
+  });
+  links.forEach(link => {
+    link.addEventListener('click', () => {
+      links.forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+    });
+  });
+})();
+</script>
+</html>

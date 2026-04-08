@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Context 上下文系统 | Claude Code 深度解析</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+  --border: #30363d; --text: #c9d1d9; --text2: #8b949e;
+  --accent: #58a6ff; --accent2: #79c0ff;
+  --pink: #ff7b72; --green: #3fb950; --yellow: #d29922;
+  --purple: #bc8cff; --orange: #f0883e;
+  --sidebar-w: 260px;
+  --topnav-h: 60px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; min-height: 100vh; }
+.topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    height: var(--topnav-h);
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+}
+.topnav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 700; color: #fff; text-decoration: none;
+    flex-shrink: 0; border-radius: 6px; transition: background 0.15s;
+    padding: 4px 8px; margin: -4px -8px;
+}
+.topnav-logo:hover { background: var(--bg3); text-decoration: none; }
+.topnav-logo .logo-icon { font-size: 20px; }
+.topnav-logo .logo-badge {
+    font-size: 10px; background: var(--accent); color: #000;
+    padding: 1px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;
+}
+.topnav-links { display: flex; align-items: center; gap: 4px; }
+.topnav-links a {
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+}
+.topnav-links a:hover { color: var(--text); background: var(--bg3); }
+.topnav-links a.active { color: var(--accent); }
+.topnav-right { display: flex; align-items: center; gap: 12px; }
+.version-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--green); font-weight: 600;
+}
+.dropdown { position: relative; }
+.dropdown-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+    cursor: pointer; border: none; background: none;
+    font-family: inherit;
+}
+.dropdown-btn:hover, .dropdown-btn.open { color: var(--text); background: var(--bg3); }
+.dropdown-btn .arrow { font-size: 10px; transition: transform 0.2s; }
+.dropdown-btn.open .arrow { transform: rotate(180deg); }
+.dropdown-panel {
+    display: none;
+    position: absolute; top: calc(100% + 8px); right: 0;
+    min-width: 380px;
+    background: rgba(13,17,23,0.97);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    z-index: 2000;
+}
+.dropdown-panel.open { display: block; }
+.dropdown-group { margin-bottom: 12px; }
+.dropdown-group:last-child { margin-bottom: 0; }
+.dropdown-group-title {
+    font-size: 10px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0 8px 6px;
+}
+.dropdown-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--text2);
+    text-decoration: none; transition: all 0.15s;
+}
+.dropdown-item:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
+.dropdown-item.active { color: var(--accent); background: rgba(88,166,255,0.08); }
+.dropdown-item .di-icon { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+.dropdown-item .di-text { flex: 1; }
+.dropdown-sep { height: 1px; background: var(--border); margin: 8px 0; }
+.layout { display: flex; padding-top: var(--topnav-h); min-height: 100vh; }
+.sidebar { width: var(--sidebar-w); height: calc(100vh - var(--topnav-h)); background: var(--bg2); border-right: 1px solid var(--border); position: fixed; top: var(--topnav-h); left: 0; overflow-y: auto; z-index: 100; }
+.sidebar-logo { padding: 20px; border-bottom: 1px solid var(--border); }
+.sidebar-logo .logo-title { font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.sidebar-logo .logo-sub { font-size: 12px; color: var(--pink); }
+.sidebar-nav { padding: 12px 0; }
+.nav-section { padding: 8px 16px 4px; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; }
+.nav-item { display: block; padding: 7px 16px; font-size: 13px; color: var(--text2); text-decoration: none; border-left: 3px solid transparent; transition: all 0.2s; }
+.nav-item:hover, .nav-item.active { color: var(--accent); background: rgba(88,166,255,0.08); border-left-color: var(--accent); }
+.main { margin-left: var(--sidebar-w); flex: 1; padding-top: var(--topnav-h); }
+.hero { background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a1f2e 100%); border-bottom: 1px solid var(--border); padding: 60px 48px 48px; position: relative; overflow: hidden; }
+.hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 500px; height: 500px; border-radius: 50%; background: radial-gradient(circle, rgba(188,140,255,0.06) 0%, transparent 70%); }
+.hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(188,140,255,0.1); border: 1px solid rgba(188,140,255,0.3); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--purple); margin-bottom: 16px; }
+.hero h1 { font-size: 42px; font-weight: 800; color: #fff; margin-bottom: 12px; line-height: 1.2; }
+.hero h1 span { color: var(--purple); }
+.hero p { font-size: 17px; color: var(--text2); max-width: 600px; line-height: 1.7; }
+.hero-meta { display: flex; gap: 24px; margin-top: 24px; flex-wrap: wrap; }
+.hero-meta-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); }
+.hero-meta-item .dot { width: 8px; height: 8px; border-radius: 50%; }
+.content { padding: 48px; max-width: 1100px; }
+.section { margin-bottom: 56px; }
+.section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.section-num { width: 32px; height: 32px; border-radius: 8px; background: rgba(188,140,255,0.15); border: 1px solid rgba(188,140,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--purple); flex-shrink: 0; }
+.section h2 { font-size: 24px; font-weight: 700; color: var(--accent); }
+.section h3 { font-size: 18px; font-weight: 600; color: var(--accent2); margin: 24px 0 12px; }
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.card-icon { font-size: 28px; margin-bottom: 12px; }
+.card h4 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.card p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+pre { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 20px; overflow-x: auto; margin: 16px 0; }
+code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.7; color: var(--text); }
+.code-comment { color: var(--text2); }
+.code-keyword { color: var(--pink); }
+.code-string { color: var(--green); }
+.code-number { color: var(--purple); }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+th { background: var(--bg3); color: var(--accent2); font-size: 13px; font-weight: 600; padding: 12px 16px; text-align: left; border-bottom: 2px solid var(--border); }
+td { padding: 12px 16px; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); }
+tr:hover td { background: rgba(88,166,255,0.04); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+.badge-yellow { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.badge-red { background: rgba(255,123,114,0.15); color: var(--pink); }
+.badge-purple { background: rgba(188,140,255,0.15); color: var(--purple); }
+.chart-container { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; }
+.chart-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+.chart-wrap { position: relative; height: 280px; }
+.tip { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.25); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; color: var(--text2); }
+.tip strong { color: var(--accent); }
+.warn { background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.25); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; color: var(--text2); }
+.warn strong { color: var(--yellow); }
+.danger { background: rgba(255,123,114,0.08); border: 1px solid rgba(255,123,114,0.25); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; color: var(--text2); }
+.danger strong { color: var(--pink); }
+
+/* 压缩级别 */
+.compact-levels { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
+.compact-level { border-radius: 10px; padding: 16px 20px; border-left: 4px solid; }
+.cl1 { background: rgba(63,185,80,0.08); border-color: var(--green); }
+.cl2 { background: rgba(210,153,34,0.08); border-color: var(--yellow); }
+.cl3 { background: rgba(255,123,114,0.08); border-color: var(--pink); }
+.compact-level h4 { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+.cl1 h4 { color: var(--green); }
+.cl2 h4 { color: var(--yellow); }
+.cl3 h4 { color: var(--pink); }
+.compact-level .meta { display: flex; gap: 16px; margin-top: 8px; }
+.compact-level .meta span { font-size: 12px; color: var(--text2); }
+
+/* 注意力图 */
+.attention-bar { display: flex; align-items: flex-end; gap: 4px; height: 120px; margin: 16px 0; padding: 0 8px; }
+.att-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.att-bar { width: 100%; border-radius: 4px 4px 0 0; transition: height 0.3s; }
+.att-label { font-size: 10px; color: var(--text2); text-align: center; }
+
+/* 症状列表 */
+.symptom-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 16px 0; }
+.symptom-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: flex; align-items: flex-start; gap: 10px; }
+.symptom-icon { font-size: 18px; flex-shrink: 0; }
+.symptom-text { font-size: 13px; color: var(--text2); line-height: 1.5; }
+
+@media (max-width: 1024px) {
+  .topnav-links { display: none; }
+  .main { padding-top: var(--topnav-h); }
+  .content { padding: 24px 24px 48px; }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; }
+  .hero { padding: 32px 24px; }
+  .content { padding: 20px 16px 48px; }
+  .dropdown-panel { right: -16px; min-width: calc(100vw - 32px); }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">
+    <span class="logo-icon">⚡</span>
+    <span>Claude Code</span>
+    <span class="logo-badge">深度解析</span>
+  </a>
+  <div class="topnav-links">
+    <a href="#">技术模块</a>
+    <a href="#">使用指南</a>
+    <div class="dropdown">
+      <button class="dropdown-btn" id="detailDropBtn">
+        详细拆解 <span class="arrow">▾</span>
+      </button>
+      <div class="dropdown-panel" id="detailDropPanel">
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">🔧 核心引擎</div>
+          <a href="claude_code_harness.html" class="dropdown-item"><span class="di-icon">🔧</span><span class="di-text">Harness 执行引擎</span></a>
+          <a href="claude_code_context.html" class="dropdown-item active"><span class="di-icon">🧠</span><span class="di-text">Context 上下文系统</span></a>
+          <a href="claude_code_memory.html" class="dropdown-item"><span class="di-icon">💾</span><span class="di-text">Memory 记忆系统</span></a>
+          <a href="claude_code_tools.html" class="dropdown-item"><span class="di-icon">🛠️</span><span class="di-text">Tool System 工具系统</span></a>
+          <a href="claude_code_agent_loop.html" class="dropdown-item"><span class="di-icon">🔄</span><span class="di-text">Agent Loop 执行循环</span></a>
+          <a href="claude_code_multi_agent.html" class="dropdown-item"><span class="di-icon">🤝</span><span class="di-text">Multi-Agent 多智能体</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📖 使用指南</div>
+          <a href="claude_code_user_manual.html" class="dropdown-item"><span class="di-icon">📖</span><span class="di-text">用户完整手册</span></a>
+          <a href="claude_code_prompt_guide.html" class="dropdown-item"><span class="di-icon">✍️</span><span class="di-text">Prompt 工程指南</span></a>
+          <a href="claude_code_cases.html" class="dropdown-item"><span class="di-icon">🚀</span><span class="di-text">实战案例库</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📊 深度报告</div>
+          <a href="claude_code_comparison.html" class="dropdown-item"><span class="di-icon">⚖️</span><span class="di-text">工具对比分析</span></a>
+          <a href="claude_code_report.html" class="dropdown-item"><span class="di-icon">🏗️</span><span class="di-text">架构深度拆解报告</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="topnav-right">
+    <span class="version-badge">✦ 2026 Q2</span>
+  </div>
+</nav>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <a href="index.html">
+      <div class="logo-title">🧠 Claude Code</div>
+      <div class="logo-sub">技术深度解析系列</div>
+    </a>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section">当前模块</div>
+    <a href="#overview" class="nav-item active">📊 上下文窗口概述</a>
+    <a href="#specs" class="nav-item">📏 窗口规格参数</a>
+    <a href="#compact" class="nav-item">🗜️ 三级压缩机制</a>
+    <a href="#lost-middle" class="nav-item">🎯 中间遗失问题</a>
+    <a href="#rot" class="nav-item">🦠 上下文腐烂</a>
+    <a href="#isolation" class="nav-item">🔒 子 Agent 隔离</a>
+    <a href="#optimize" class="nav-item">⚡ 优化技巧</a>
+    <a href="#monitor" class="nav-item">📈 监控与成本</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="hero">
+    <div class="hero-badge">🧠 技术深度解析 · 第二篇</div>
+    <h1>Context <span>上下文系统</span></h1>
+    <p>Token 窗口是 Claude 的工作记忆。理解它如何工作、如何压缩、如何腐烂，是高效使用 Claude Code 的关键所在。</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><div class="dot" style="background:var(--purple)"></div>200K token 窗口</div>
+      <div class="hero-meta-item"><div class="dot" style="background:var(--yellow)"></div>三级压缩策略</div>
+      <div class="hero-meta-item"><div class="dot" style="background:var(--pink)"></div>中间遗失问题</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- 1. 概述 -->
+    <div class="section" id="overview">
+      <div class="section-header">
+        <div class="section-num">1</div>
+        <h2>上下文窗口的组成</h2>
+      </div>
+      <p style="color:var(--text2);line-height:1.8;margin-bottom:20px">上下文窗口是 Claude 在单次会话中能够"看到"的全部信息，是一个有限的 token 空间。</p>
+
+      <div class="chart-container">
+        <div class="chart-title">典型项目会话的 Token 分布（200K 窗口）</div>
+        <div class="chart-wrap">
+          <canvas id="tokenDistChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">💬</div>
+          <h4>系统提示 + CLAUDE.md</h4>
+          <p>约 10% (~20K tokens)。项目指令和 Claude 的行为规范，每次会话自动加载。</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🗣️</div>
+          <h4>对话历史</h4>
+          <p>约 20% (~40K tokens)。用户消息和 Claude 回复的完整记录。</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📄</div>
+          <h4>文件内容</h4>
+          <p>约 30% (~60K tokens)。通过 read 工具读取的代码文件内容。</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔧</div>
+          <h4>工具输出</h4>
+          <p>约 40% (~80K tokens)。bash/grep/read 等工具的执行结果，最大消耗者。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 规格 -->
+    <div class="section" id="specs">
+      <div class="section-header">
+        <div class="section-num">2</div>
+        <h2>窗口规格参数</h2>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>模型</th><th>上下文窗口</th><th>压缩触发阈值</th><th>压缩缓冲区</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Claude 3.5 Sonnet</td><td><span class="badge badge-purple">200K tokens</span></td><td>~128K (64%)</td><td>~33K tokens</td></tr>
+          <tr><td>Claude 3.7 Sonnet</td><td><span class="badge badge-purple">200K tokens</span></td><td>~150K (75%)</td><td>~33K tokens</td></tr>
+          <tr><td>Claude 3 Opus</td><td><span class="badge badge-purple">200K tokens</span></td><td>~128K (64%)</td><td>~33K tokens</td></tr>
+          <tr><td>Claude 3.5 Haiku</td><td><span class="badge badge-purple">200K tokens</span></td><td>~128K (64%)</td><td>~20K tokens</td></tr>
+          <tr><td>未来模型（预期）</td><td><span class="badge badge-green">1M tokens</span></td><td>~420K (42%)</td><td>~100K tokens</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 3. 压缩 -->
+    <div class="section" id="compact">
+      <div class="section-header">
+        <div class="section-num">3</div>
+        <h2>三级压缩机制</h2>
+      </div>
+
+      <div class="compact-levels">
+        <div class="compact-level cl1">
+          <h4>Level 1: MicroCompact（微压缩）</h4>
+          <p style="font-size:13px;color:var(--text2)">裁剪冗余工具输出、截断过长响应，信息损失极低</p>
+          <div class="meta">
+            <span>触发：使用率 > 50%</span>
+            <span>节省：10-20%</span>
+            <span>损失：极低</span>
+          </div>
+        </div>
+        <div class="compact-level cl2">
+          <h4>Level 2: AutoCompact（自动压缩）</h4>
+          <p style="font-size:13px;color:var(--text2)">生成对话摘要，替换原始历史，保留关键决策和错误信息</p>
+          <div class="meta">
+            <span>触发：使用率 > 64-75%</span>
+            <span>节省：40-60%</span>
+            <span>损失：低</span>
+          </div>
+        </div>
+        <div class="compact-level cl3">
+          <h4>Level 3: Full Compact（完全压缩）</h4>
+          <p style="font-size:13px;color:var(--text2)">激进压缩，只保留最关键信息，紧急情况下触发</p>
+          <div class="meta">
+            <span>触发：使用率 > 90%</span>
+            <span>节省：70-80%</span>
+            <span>损失：中</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">三级压缩效果对比（Token 节省量）</div>
+        <div class="chart-wrap">
+          <canvas id="compactChart"></canvas>
+        </div>
+      </div>
+
+      <pre><code><span class="code-comment"># 压缩管理命令</span>
+claude /status          <span class="code-comment"># 查看当前上下文使用情况</span>
+claude /compact         <span class="code-comment"># 手动触发 AutoCompact</span>
+claude /compact --full  <span class="code-comment"># 强制完整压缩</span></code></pre>
+    </div>
+
+    <!-- 4. 中间遗失 -->
+    <div class="section" id="lost-middle">
+      <div class="section-header">
+        <div class="section-num">4</div>
+        <h2>"中间遗失"问题</h2>
+      </div>
+      <p style="color:var(--text2);line-height:1.8;margin-bottom:20px">研究表明，Claude 对上下文的注意力分布呈 <strong style="color:var(--accent)">U 形曲线</strong>——开头和结尾注意力强，中间内容容易被遗忘。</p>
+
+      <div class="chart-container">
+        <div class="chart-title">注意力分布曲线（U 形效应）</div>
+        <div class="chart-wrap">
+          <canvas id="attentionChart"></canvas>
+        </div>
+      </div>
+
+      <h3>实际影响与解决方案</h3>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">📌</div>
+          <h4>关键信息置顶</h4>
+          <p>将最重要的约束和规范放在 CLAUDE.md 的最前面，确保始终被注意到</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔄</div>
+          <h4>定期重申约束</h4>
+          <p>在长会话中，定期重申关键约束："记住我们使用 PostgreSQL..."</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🗜️</div>
+          <h4>主动压缩</h4>
+          <p>使用 /compact 重置上下文，保留关键信息，清除噪音</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 腐烂 -->
+    <div class="section" id="rot">
+      <div class="section-header">
+        <div class="section-num">5</div>
+        <h2>上下文腐烂（Context Rot）</h2>
+      </div>
+      <p style="color:var(--text2);line-height:1.8;margin-bottom:20px">随着会话进行，上下文中积累大量历史信息，导致信噪比下降、注意力分散、性能下降。</p>
+
+      <h3>腐烂症状识别</h3>
+      <div class="symptom-list">
+        <div class="symptom-item">
+          <div class="symptom-icon">🔁</div>
+          <div class="symptom-text">Claude 开始重复之前已经讨论过的内容</div>
+        </div>
+        <div class="symptom-item">
+          <div class="symptom-icon">🧠</div>
+          <div class="symptom-text">Claude 忘记了之前确认的技术决策</div>
+        </div>
+        <div class="symptom-item">
+          <div class="symptom-icon">😰</div>
+          <div class="symptom-text">响应变得更加保守和不确定</div>
+        </div>
+        <div class="symptom-item">
+          <div class="symptom-icon">❓</div>
+          <div class="symptom-text">Claude 开始询问已经提供过的信息</div>
+        </div>
+        <div class="symptom-item">
+          <div class="symptom-icon">🐛</div>
+          <div class="symptom-text">代码质量下降，出现之前已修复的错误</div>
+        </div>
+        <div class="symptom-item">
+          <div class="symptom-icon">⏱️</div>
+          <div class="symptom-text">响应速度变慢，思考时间增加</div>
+        </div>
+      </div>
+
+      <div class="danger">
+        <strong>⚠️ 对抗腐烂：</strong>建议每 30-50 轮对话执行一次 <code>/compact</code>，或者为独立任务开启新会话。将重要决策写入 CLAUDE.md 是最可靠的防腐烂方案。
+      </div>
+    </div>
+
+    <!-- 6. 隔离 -->
+    <div class="section" id="isolation">
+      <div class="section-header">
+        <div class="section-num">6</div>
+        <h2>子 Agent 的上下文隔离</h2>
+      </div>
+
+      <div class="card-grid">
+        <div class="card" style="border-color:var(--pink)">
+          <div class="card-icon">😰</div>
+          <h4>主 Agent 上下文（已满 80%）</h4>
+          <p>大量对话历史 + 多个文件内容 + 工具调用历史，快要撑不住了</p>
+        </div>
+        <div class="card" style="border-color:var(--green)">
+          <div class="card-icon">✨</div>
+          <h4>子 Agent 上下文（全新 0%）</h4>
+          <p>独立的 200K token 窗口，只接收精简的任务描述和关键约束</p>
+        </div>
+      </div>
+
+      <div class="tip">
+        <strong>💡 最佳实践：</strong>向子 Agent 传递精简的上下文，只包含完成任务所需的最少信息。子 Agent 完成后只返回结果摘要，不返回完整的执行历史。
+      </div>
+    </div>
+
+    <!-- 7. 优化 -->
+    <div class="section" id="optimize">
+      <div class="section-header">
+        <div class="section-num">7</div>
+        <h2>上下文优化技巧</h2>
+      </div>
+
+      <h3>文件读取优化</h3>
+      <pre><code><span class="code-comment"># ❌ 不好：读取整个大目录</span>
+claude <span class="code-string">"读取 src/ 目录下所有文件"</span>
+
+<span class="code-comment"># ✅ 好：只读取需要的部分</span>
+claude <span class="code-string">"只读取 src/auth/ 目录下的认证相关文件"</span>
+
+<span class="code-comment"># ✅ 更好：先搜索，再精确读取</span>
+claude <span class="code-string">"先用 grep 找到处理登录的函数，然后只读取那个函数"</span></code></pre>
+
+      <h3>会话分割策略</h3>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">🔙</div>
+          <h4>会话 1：后端 API</h4>
+          <p>专注于 API 设计和实现，保持上下文干净</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🖥️</div>
+          <h4>会话 2：前端组件</h4>
+          <p>专注于 UI 开发，不混入后端细节</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🧪</div>
+          <h4>会话 3：测试</h4>
+          <p>专注于测试编写，引用 API 文档而非实现细节</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8. 监控 -->
+    <div class="section" id="monitor">
+      <div class="section-header">
+        <div class="section-num">8</div>
+        <h2>监控与成本</h2>
+      </div>
+
+      <pre><code><span class="code-comment"># 查看详细上下文统计</span>
+claude /status --verbose
+
+<span class="code-comment"># 输出示例：</span>
+<span class="code-comment"># ┌─────────────────────────────────────┐</span>
+<span class="code-comment"># │ Context Window Status               │</span>
+<span class="code-comment"># ├─────────────────────────────────────┤</span>
+<span class="code-comment"># │ Total:    200,000 tokens            │</span>
+<span class="code-comment"># │ Used:     142,847 tokens (71.4%)    │</span>
+<span class="code-comment"># │ Available: 57,153 tokens            │</span>
+<span class="code-comment"># │                                     │</span>
+<span class="code-comment"># │ ⚠️  AutoCompact threshold: 75%      │</span>
+<span class="code-comment"># │ 📊 Estimated turns remaining: ~8    │</span>
+<span class="code-comment"># └─────────────────────────────────────┘</span></code></pre>
+
+      <div class="tip">
+        <strong>💰 成本提示：</strong>Claude 3.5 Sonnet 输入定价约 $3/1M tokens。一个 100K token 的上下文，每次调用输入成本约 $0.30。减少上下文大小可以显著降低 API 成本。
+      </div>
+    </div>
+
+  </div>
+</main>
+</div><!-- /.layout -->
+
+<script>
+// Token 分布图
+const tokenCtx = document.getElementById('tokenDistChart').getContext('2d');
+new Chart(tokenCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['工具输出 (40%)', '文件内容 (30%)', '对话历史 (20%)', '系统提示+CLAUDE.md (10%)'],
+    datasets: [{
+      data: [40, 30, 20, 10],
+      backgroundColor: ['rgba(255,123,114,0.7)', 'rgba(88,166,255,0.7)', 'rgba(188,140,255,0.7)', 'rgba(63,185,80,0.7)'],
+      borderColor: ['#ff7b72', '#58a6ff', '#bc8cff', '#3fb950'],
+      borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'right', labels: { color: '#c9d1d9', font: { size: 12 }, padding: 12 } }
+    }
+  }
+});
+
+// 压缩效果图
+const compactCtx = document.getElementById('compactChart').getContext('2d');
+new Chart(compactCtx, {
+  type: 'bar',
+  data: {
+    labels: ['MicroCompact', 'AutoCompact', 'Full Compact'],
+    datasets: [
+      {
+        label: 'Token 节省率 (%)',
+        data: [15, 50, 75],
+        backgroundColor: ['rgba(63,185,80,0.6)', 'rgba(210,153,34,0.6)', 'rgba(255,123,114,0.6)'],
+        borderColor: ['#3fb950', '#d29922', '#ff7b72'],
+        borderWidth: 2,
+      },
+      {
+        label: '信息损失率 (%)',
+        data: [2, 10, 25],
+        backgroundColor: ['rgba(88,166,255,0.3)', 'rgba(88,166,255,0.3)', 'rgba(88,166,255,0.3)'],
+        borderColor: ['#58a6ff', '#58a6ff', '#58a6ff'],
+        borderWidth: 2,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#c9d1d9', font: { size: 13 } } } },
+    scales: {
+      x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' } },
+      y: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' }, max: 100 }
+    }
+  }
+});
+
+// 注意力分布图
+const attCtx = document.getElementById('attentionChart').getContext('2d');
+const labels = ['开头\n(系统提示)', '早期\n对话', '中期\n内容', '中间\n内容', '中后期\n内容', '近期\n对话', '结尾\n(最新)'];
+const attData = [95, 75, 45, 30, 40, 70, 98];
+new Chart(attCtx, {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [{
+      label: '注意力强度 (%)',
+      data: attData,
+      borderColor: '#bc8cff',
+      backgroundColor: 'rgba(188,140,255,0.15)',
+      borderWidth: 3,
+      fill: true,
+      tension: 0.4,
+      pointBackgroundColor: '#bc8cff',
+      pointRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#c9d1d9', font: { size: 13 } } } },
+    scales: {
+      x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' } },
+      y: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' }, min: 0, max: 100,
+           title: { display: true, text: '注意力强度 (%)', color: '#8b949e' } }
+    }
+  }
+});
+</script>
+<script>
+// Dropdown
+const dropBtn = document.getElementById('detailDropBtn');
+const dropPanel = document.getElementById('detailDropPanel');
+dropBtn.addEventListener('click', () => {
+  dropPanel.classList.toggle('open');
+  dropBtn.classList.toggle('open');
+});
+document.addEventListener('click', e => {
+  if (!dropBtn.contains(e.target) && !dropPanel.contains(e.target)) {
+    dropPanel.classList.remove('open');
+    dropBtn.classList.remove('open');
+  }
+});
+
+// Sidebar active link on scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      const id = entry.target.id;
+      const active = document.querySelector(`.nav-item[href="#${id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -60% 0px' });
+document.querySelectorAll('.section[id]').forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

@@ -1,0 +1,1984 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code 用户完整使用手册 v2.0</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #79c0ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --pink: #ff7b72;
+    --sidebar-w: 260px;
+    --topnav-h: 60px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  /* ════════════════════════════════
+     TOP NAVIGATION
+  ════════════════════════════════ */
+  .topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    height: var(--topnav-h);
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+  }
+  .topnav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 700; color: #fff; text-decoration: none;
+    flex-shrink: 0; border-radius: 6px; transition: background 0.15s;
+    padding: 4px 8px; margin: -4px -8px;
+  }
+  .topnav-logo:hover { background: var(--bg3); text-decoration: none; }
+  .topnav-logo .logo-icon { font-size: 20px; }
+  .topnav-logo .logo-badge {
+    font-size: 10px; background: var(--accent); color: #000;
+    padding: 1px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;
+  }
+  .topnav-links { display: flex; align-items: center; gap: 4px; }
+  .topnav-links a {
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+  }
+  .topnav-links a:hover { color: var(--text); background: var(--bg3); }
+  .topnav-links a.active { color: var(--accent); }
+  .topnav-right { display: flex; align-items: center; gap: 12px; }
+  .version-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--green); font-weight: 600;
+  }
+
+  /* ── Dropdown ── */
+  .dropdown { position: relative; }
+  .dropdown-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+    cursor: pointer; border: none; background: none;
+    font-family: inherit;
+  }
+  .dropdown-btn:hover, .dropdown-btn.open { color: var(--text); background: var(--bg3); }
+  .dropdown-btn .arrow { font-size: 10px; transition: transform 0.2s; }
+  .dropdown-btn.open .arrow { transform: rotate(180deg); }
+  .dropdown-panel {
+    display: none;
+    position: absolute; top: calc(100% + 8px); right: 0;
+    min-width: 380px;
+    background: rgba(13,17,23,0.97);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    z-index: 2000;
+  }
+  .dropdown-panel.open { display: block; }
+  .dropdown-group { margin-bottom: 12px; }
+  .dropdown-group:last-child { margin-bottom: 0; }
+  .dropdown-group-title {
+    font-size: 10px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0 8px 6px;
+  }
+  .dropdown-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--text2);
+    text-decoration: none; transition: all 0.15s;
+  }
+  .dropdown-item:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
+  .dropdown-item.active { color: var(--accent); background: rgba(88,166,255,0.08); }
+  .dropdown-item .di-icon { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+  .dropdown-item .di-text { flex: 1; }
+  .dropdown-sep { height: 1px; background: var(--border); margin: 8px 0; }
+
+  /* ════════════════════════════════
+     LAYOUT
+  ════════════════════════════════ */
+  .layout {
+    display: flex;
+    padding-top: var(--topnav-h);
+    min-height: 100vh;
+  }
+
+  /* ════════════════════════════════
+     SIDEBAR
+  ════════════════════════════════ */
+  #sidebar {
+    width: var(--sidebar-w);
+    height: calc(100vh - var(--topnav-h));
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    position: fixed;
+    top: var(--topnav-h); left: 0;
+    overflow-y: auto;
+    padding: 16px 0 40px;
+    z-index: 100;
+  }
+  #sidebar .logo {
+    padding: 0 16px 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  #sidebar .logo h2 {
+    font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px;
+  }
+  #sidebar .logo p { font-size: 10px; color: var(--text2); margin-top: 3px; }
+  #sidebar nav a {
+    display: block;
+    padding: 5px 16px;
+    color: var(--text2);
+    text-decoration: none;
+    font-size: 12px;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #sidebar nav a:hover {
+    color: var(--text);
+    background: var(--bg3);
+    border-left-color: var(--accent);
+  }
+  #sidebar nav a.active {
+    color: var(--accent);
+    background: rgba(88,166,255,0.08);
+    border-left-color: var(--accent);
+    font-weight: 600;
+  }
+  #sidebar nav .section-label {
+    padding: 10px 16px 4px;
+    font-size: 10px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  #sidebar .logo a {
+    display: block; text-decoration: none; border-radius: 6px;
+    transition: background 0.15s; padding: 4px 0;
+  }
+  #sidebar .logo a:hover { background: var(--bg3); text-decoration: none; }
+
+  /* ════════════════════════════════
+     MAIN CONTENT
+  ════════════════════════════════ */
+  #main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    padding: 32px 48px 60px;
+    max-width: 1060px;
+    min-width: 0;
+  }
+
+  /* ── Typography ── */
+  h1 { font-size: 28px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+  h2 { font-size: 20px; font-weight: 700; color: var(--accent); margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 16px; font-weight: 600; color: var(--accent2); margin: 28px 0 12px; }
+  h4 { font-size: 14px; font-weight: 600; color: var(--text); margin: 20px 0 8px; }
+  p { margin-bottom: 12px; color: var(--text); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; }
+  strong { color: var(--text); font-weight: 600; }
+  em { color: var(--text2); font-style: italic; }
+
+  /* ── Code ── */
+  code {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 12px; color: var(--pink);
+  }
+  pre {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px 20px; overflow-x: auto; margin: 12px 0 20px;
+  }
+  pre code { background: none; border: none; padding: 0; color: var(--text); font-size: 13px; line-height: 1.6; }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; margin: 12px 0 20px; border-radius: 8px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--bg3); color: var(--text2); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(88,166,255,0.04); }
+
+  /* ── Callouts ── */
+  .callout { border-radius: 8px; padding: 14px 18px; margin: 16px 0; border-left: 3px solid; font-size: 13px; }
+  .callout-info { background: rgba(88,166,255,0.08); border-color: var(--accent); }
+  .callout-warn { background: rgba(210,153,34,0.08); border-color: var(--yellow); }
+  .callout-danger { background: rgba(248,81,73,0.08); border-color: var(--red); }
+  .callout-tip { background: rgba(63,185,80,0.08); border-color: var(--green); }
+  .callout-title { font-weight: 700; margin-bottom: 4px; }
+
+  /* ── Flag dots ── */
+  .flag-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .released { background: var(--green); }
+  .beta { background: var(--yellow); }
+  .unreleased { background: var(--orange); }
+  .internal { background: var(--red); }
+
+  /* ── Badges ── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .badge-released { background: rgba(63,185,80,0.15); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+  .badge-beta { background: rgba(210,153,34,0.15); color: var(--yellow); border: 1px solid rgba(210,153,34,0.3); }
+  .badge-unreleased { background: rgba(240,136,62,0.15); color: var(--orange); border: 1px solid rgba(240,136,62,0.3); }
+  .badge-internal { background: rgba(248,81,73,0.15); color: var(--red); border: 1px solid rgba(248,81,73,0.3); }
+
+  /* ── Charts ── */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 24px 0; }
+  .chart-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .chart-card h4 { margin-top: 0; color: var(--text2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .chart-card canvas { max-height: 220px; }
+  .chart-full { grid-column: 1 / -1; }
+
+  /* ── File tree ── */
+  .file-tree { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.8; color: var(--text); margin: 12px 0 20px; }
+  .file-tree .dir { color: var(--accent); font-weight: 600; }
+  .file-tree .file { color: var(--text); }
+  .file-tree .comment { color: var(--text2); }
+
+  /* ── File cards ── */
+  .file-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin: 12px 0; }
+  .file-card .file-name { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+  .file-card .file-path { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text2); margin-bottom: 10px; }
+  .file-card .file-desc { font-size: 13px; color: var(--text); }
+  .file-card .file-tags { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .file-tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+
+  /* ── Header ── */
+  .page-header { padding-bottom: 24px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+  .page-header .meta { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+  .meta-item span { color: var(--text); }
+
+  /* ── TOC ── */
+  .toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0 32px; }
+  .toc-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; color: var(--text2); font-size: 13px; transition: all 0.15s; }
+  .toc-item:hover { color: var(--text); border-color: var(--accent); background: var(--bg3); text-decoration: none; }
+  .toc-num { font-size: 11px; font-weight: 700; color: var(--accent); min-width: 24px; }
+
+  /* ── Divider ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+
+  /* ════════════════════════════════
+     RESPONSIVE
+  ════════════════════════════════ */
+  @media (max-width: 1024px) {
+    .topnav-links { display: none; }
+    #main { padding: 24px 24px 48px; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .toc-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 768px) {
+    #sidebar { display: none; }
+    #main { margin-left: 0; padding: 20px 16px 48px; }
+    .dropdown-panel { right: -16px; min-width: calc(100vw - 32px); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════
+     TOP NAV
+════════════════════════════════ -->
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">
+    <span class="logo-icon">⚡</span>
+    <span>Claude Code</span>
+    <span class="logo-badge">深度解析</span>
+  </a>
+  <div class="topnav-links">
+    <a href="#">技术模块</a>
+    <a href="#">使用指南</a>
+    <div class="dropdown">
+      <button class="dropdown-btn" id="detailDropBtn">
+        详细拆解 <span class="arrow">▾</span>
+      </button>
+      <div class="dropdown-panel" id="detailDropPanel">
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">🔧 核心引擎</div>
+          <a href="claude_code_harness.html" class="dropdown-item">
+            <span class="di-icon">🔧</span><span class="di-text">Harness 执行引擎</span>
+          </a>
+          <a href="claude_code_context.html" class="dropdown-item">
+            <span class="di-icon">🧠</span><span class="di-text">Context 上下文系统</span>
+          </a>
+          <a href="claude_code_memory.html" class="dropdown-item">
+            <span class="di-icon">💾</span><span class="di-text">Memory 记忆系统</span>
+          </a>
+          <a href="claude_code_tools.html" class="dropdown-item">
+            <span class="di-icon">🛠️</span><span class="di-text">Tool System 工具系统</span>
+          </a>
+          <a href="claude_code_agent_loop.html" class="dropdown-item">
+            <span class="di-icon">🔄</span><span class="di-text">Agent Loop 执行循环</span>
+          </a>
+          <a href="claude_code_multi_agent.html" class="dropdown-item">
+            <span class="di-icon">🤝</span><span class="di-text">Multi-Agent 多智能体</span>
+          </a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📖 使用指南</div>
+          <a href="claude_code_user_manual.html" class="dropdown-item active">
+            <span class="di-icon">📖</span><span class="di-text">用户完整手册</span>
+          </a>
+          <a href="claude_code_prompt_guide.html" class="dropdown-item">
+            <span class="di-icon">✍️</span><span class="di-text">Prompt 工程指南</span>
+          </a>
+          <a href="claude_code_cases.html" class="dropdown-item">
+            <span class="di-icon">🚀</span><span class="di-text">实战案例库</span>
+          </a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📊 深度报告</div>
+          <a href="claude_code_comparison.html" class="dropdown-item">
+            <span class="di-icon">⚖️</span><span class="di-text">工具对比分析</span>
+          </a>
+          <a href="claude_code_report.html" class="dropdown-item">
+            <span class="di-icon">🏗️</span><span class="di-text">架构深度拆解报告</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="topnav-right">
+    <span class="version-badge">✦ 2026 Q2</span>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════
+     LAYOUT
+════════════════════════════════ -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="logo">
+      <a href="index.html">
+        <h2>Claude Code 手册</h2>
+        <p>v2.0 · 2026年4月</p>
+      </a>
+    </div>
+    <nav>
+      <div class="section-label">基础使用</div>
+      <a href="#quickstart" class="sidebar-link">01 · 快速上手</a>
+      <a href="#modes" class="sidebar-link">02 · 交互模式总览</a>
+      <a href="#slash" class="sidebar-link">03 · Slash 命令参考</a>
+      <a href="#keybindings" class="sidebar-link">04 · 键盘快捷键</a>
+      <a href="#cli" class="sidebar-link">05 · CLI 命令行参数</a>
+      <a href="#permissions" class="sidebar-link">06 · 权限模式详解</a>
+
+      <div class="section-label">配置与记忆</div>
+      <a href="#claudemd" class="sidebar-link">07 · CLAUDE.md 配置</a>
+      <a href="#memory" class="sidebar-link">08 · 记忆系统</a>
+      <a href="#sessions" class="sidebar-link">09 · 会话管理</a>
+      <a href="#models" class="sidebar-link">10 · 模型选择与别名</a>
+
+      <div class="section-label">扩展与自动化</div>
+      <a href="#mcp" class="sidebar-link">11 · MCP 集成与扩展</a>
+      <a href="#custom-commands" class="sidebar-link">12 · 自定义 Slash 命令</a>
+      <a href="#hooks" class="sidebar-link">13 · Hooks 自动化</a>
+      <a href="#multiagent" class="sidebar-link">14 · 多 Agent 工作流</a>
+      <a href="#cicd" class="sidebar-link">15 · CI/CD 集成</a>
+
+      <div class="section-label">深度参考</div>
+      <a href="#flags" class="sidebar-link">16 · Feature Flag 解析</a>
+      <a href="#files" class="sidebar-link">17 · 重要文件与目录</a>
+      <a href="#enterprise" class="sidebar-link">18 · 企业与团队配置</a>
+      <a href="#examples" class="sidebar-link">19 · 使用场景示例</a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main id="main">
+
+  <!-- Header -->
+  <div class="page-header">
+    <h1>Claude Code 用户完整使用手册</h1>
+    <div class="meta">
+      <div class="meta-item">📅 更新日期：<span>2026年4月7日</span></div>
+      <div class="meta-item">🏷️ 版本：<span>v2.0</span></div>
+      <div class="meta-item">📦 来源：<span>官方文档 + 2026年3月31日源码泄漏</span></div>
+      <div class="meta-item">🚩 Feature Flags：<span>44个（含14个未发布/内部专用）</span></div>
+    </div>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc-grid">
+    <a href="#quickstart" class="toc-item"><span class="toc-num">01</span>快速上手</a>
+    <a href="#modes" class="toc-item"><span class="toc-num">02</span>交互模式总览</a>
+    <a href="#slash" class="toc-item"><span class="toc-num">03</span>Slash 命令参考</a>
+    <a href="#keybindings" class="toc-item"><span class="toc-num">04</span>键盘快捷键</a>
+    <a href="#cli" class="toc-item"><span class="toc-num">05</span>CLI 命令行参数</a>
+    <a href="#permissions" class="toc-item"><span class="toc-num">06</span>权限模式详解</a>
+    <a href="#claudemd" class="toc-item"><span class="toc-num">07</span>CLAUDE.md 配置</a>
+    <a href="#memory" class="toc-item"><span class="toc-num">08</span>记忆系统</a>
+    <a href="#sessions" class="toc-item"><span class="toc-num">09</span>会话管理</a>
+    <a href="#models" class="toc-item"><span class="toc-num">10</span>模型选择与别名</a>
+    <a href="#mcp" class="toc-item"><span class="toc-num">11</span>MCP 集成与扩展</a>
+    <a href="#custom-commands" class="toc-item"><span class="toc-num">12</span>自定义 Slash 命令</a>
+    <a href="#hooks" class="toc-item"><span class="toc-num">13</span>Hooks 自动化</a>
+    <a href="#multiagent" class="toc-item"><span class="toc-num">14</span>多 Agent 工作流</a>
+    <a href="#cicd" class="toc-item"><span class="toc-num">15</span>CI/CD 集成</a>
+    <a href="#flags" class="toc-item"><span class="toc-num">16</span>Feature Flag 解析</a>
+    <a href="#files" class="toc-item"><span class="toc-num">17</span>重要文件与目录</a>
+    <a href="#enterprise" class="toc-item"><span class="toc-num">18</span>企业与团队配置</a>
+    <a href="#examples" class="toc-item"><span class="toc-num">19</span>使用场景示例</a>
+  </div>
+
+  <!-- ═══ 01 快速上手 ═══ -->
+  <h2 id="quickstart">01 · 快速上手</h2>
+
+  <h3>安装</h3>
+  <pre><code>npm install -g @anthropic-ai/claude-code</code></pre>
+
+  <h3>首次启动</h3>
+  <pre><code>cd your-project
+claude</code></pre>
+
+  <h3>基本交互</h3>
+  <p>启动后，直接用自然语言描述你想做的事：</p>
+  <pre><code>&gt; 帮我找出 src/auth.ts 中所有的 TODO 注释并修复它们
+&gt; 解释一下这个项目的整体架构
+&gt; 写一个针对 UserService 的单元测试
+&gt; 修复最近一次 git commit 引入的 bug</code></pre>
+
+  <!-- ═══ 02 交互模式 ═══ -->
+  <h2 id="modes">02 · 交互模式总览</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>模式</th><th>启动方式</th><th>适用场景</th></tr>
+      <tr><td><strong>交互式 REPL</strong></td><td><code>claude</code></td><td>日常开发，多轮对话</td></tr>
+      <tr><td><strong>单次查询（Headless）</strong></td><td><code>claude -p "..."</code></td><td>脚本集成，CI/CD</td></tr>
+      <tr><td><strong>管道输入</strong></td><td><code>cat file | claude -p "..."</code></td><td>处理文件/命令输出</td></tr>
+      <tr><td><strong>会话恢复</strong></td><td><code>claude --continue</code></td><td>继续上次工作</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══ 03 Slash 命令 ═══ -->
+  <h2 id="slash">03 · Slash 命令完整参考</h2>
+
+  <h3>会话控制</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>命令</th><th>说明</th><th>示例</th></tr>
+      <tr><td><code>/clear</code></td><td>清除当前对话上下文，开始新会话</td><td><code>/clear</code></td></tr>
+      <tr><td><code>/compact [指令]</code></td><td>压缩上下文，可附加保留指令</td><td><code>/compact 保留认证模块讨论</code></td></tr>
+      <tr><td><code>/exit</code> / <code>/quit</code></td><td>退出 Claude Code</td><td><code>/exit</code></td></tr>
+    </table>
+  </div>
+
+  <h3>配置与设置</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>命令</th><th>说明</th></tr>
+      <tr><td><code>/config</code></td><td>打开配置界面，可视化修改所有设置项</td></tr>
+      <tr><td><code>/keybindings</code></td><td>管理自定义键盘快捷键，生成 <code>~/.claude/keybindings.json</code></td></tr>
+      <tr><td><code>/permissions</code></td><td>查看和管理当前会话的工具权限规则</td></tr>
+      <tr><td><code>/model</code></td><td>切换 AI 模型（opus / sonnet / haiku 及其变体）</td></tr>
+    </table>
+  </div>
+
+  <h3>模型切换</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>命令</th><th>说明</th></tr>
+      <tr><td><code>/model opus</code></td><td>切换到 Claude Opus（最强推理，适合复杂任务）</td></tr>
+      <tr><td><code>/model sonnet</code></td><td>切换到 Claude Sonnet（均衡性能，日常首选）</td></tr>
+      <tr><td><code>/model haiku</code></td><td>切换到 Claude Haiku（最快速度，简单任务）</td></tr>
+      <tr><td><code>/model opusplan</code></td><td>规划用 Opus，执行用 Sonnet（成本优化模式）</td></tr>
+      <tr><td><code>/model sonnet[1m]</code></td><td>使用 100万 token 上下文窗口版本</td></tr>
+    </table>
+  </div>
+
+  <h3>记忆与工具</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>命令</th><th>说明</th></tr>
+      <tr><td><code>/memory</code></td><td>查看和编辑当前项目的 Auto Memory 内容</td></tr>
+      <tr><td><code>/mcp</code></td><td>查看已连接的 MCP 服务器列表和状态</td></tr>
+      <tr><td><code>/tools</code></td><td>列出当前会话中可用的所有工具</td></tr>
+      <tr><td><code>/teleport</code></td><td>在不同设备间传输会话状态</td></tr>
+      <tr><td><code>/voice</code></td><td>启用语音输入模式（2026年3月新增）</td></tr>
+    </table>
+  </div>
+
+  <h3>其他命令</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>命令</th><th>说明</th></tr>
+      <tr><td><code>/help</code></td><td>显示帮助信息和命令列表</td></tr>
+      <tr><td><code>/status</code></td><td>显示当前会话状态（token 使用量、模型等）</td></tr>
+      <tr><td><code>/bug</code></td><td>报告 Claude Code 的 bug</td></tr>
+      <tr><td><code>/doctor</code></td><td>检查 Claude Code 安装和配置是否正常</td></tr>
+      <tr><td><code>/login</code> / <code>/logout</code></td><td>登录/退出 Anthropic 账户</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══ 04 键盘快捷键 ═══ -->
+  <h2 id="keybindings">04 · 键盘快捷键</h2>
+
+  <h3>核心快捷键</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>快捷键</th><th>功能</th></tr>
+      <tr><td><code>Esc</code></td><td>中断 Claude 当前执行</td></tr>
+      <tr><td><code>Esc</code> + <code>Esc</code>（双击）</td><td>打开会话回溯菜单（Rewind）</td></tr>
+      <tr><td><code>Shift</code> + <code>Tab</code></td><td>循环切换权限模式（default → acceptEdits → plan → auto）</td></tr>
+      <tr><td><code>Ctrl</code> + <code>C</code></td><td>强制退出</td></tr>
+    </table>
+  </div>
+
+  <h3>文本编辑（Bash 风格）</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>快捷键</th><th>功能</th></tr>
+      <tr><td><code>Ctrl+A</code></td><td>跳到行首</td></tr>
+      <tr><td><code>Ctrl+E</code></td><td>跳到行尾</td></tr>
+      <tr><td><code>Ctrl+W</code></td><td>删除前一个单词</td></tr>
+      <tr><td><code>Ctrl+U</code></td><td>删除到行首</td></tr>
+      <tr><td><code>Ctrl+K</code></td><td>删除到行尾</td></tr>
+      <tr><td><code>Option+F</code></td><td>向前移动一个单词</td></tr>
+      <tr><td><code>Option+B</code></td><td>向后移动一个单词</td></tr>
+    </table>
+  </div>
+
+  <h3>图片粘贴</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>快捷键</th><th>平台</th><th>功能</th></tr>
+      <tr><td><code>Ctrl+V</code></td><td>通用</td><td>粘贴图片（截图直接分析）</td></tr>
+      <tr><td><code>Cmd+V</code></td><td>iTerm2</td><td>粘贴图片</td></tr>
+      <tr><td><code>Alt+V</code></td><td>Windows</td><td>粘贴图片</td></tr>
+    </table>
+  </div>
+
+  <h3>自定义快捷键</h3>
+  <p>通过 <code>/keybindings</code> 命令或直接编辑 <code>~/.claude/keybindings.json</code>：</p>
+  <pre><code>{
+  "bindings": [
+    {
+      "key": "ctrl+shift+t",
+      "command": "/compact 保留所有测试相关讨论"
+    },
+    {
+      "key": "ctrl+shift+r",
+      "command": "/model opusplan"
+    }
+  ]
+}</code></pre>
+
+  <!-- ═══ 05 CLI ═══ -->
+  <h2 id="cli">05 · CLI 命令行参数</h2>
+
+  <h3>基础参数</h3>
+  <pre><code># 启动交互式会话
+claude
+
+# 单次查询（Headless 模式）
+claude -p "解释这个函数的作用"
+claude --print "解释这个函数的作用"
+
+# 指定模型
+claude --model sonnet
+claude --model claude-opus-4-6
+claude --model opus[1m]   # 使用 1M token 上下文
+
+# 指定输出格式
+claude -p "查询" --output-format text        # 默认纯文本
+claude -p "查询" --output-format json        # JSON 格式
+claude -p "查询" --output-format stream-json # 流式 JSON</code></pre>
+
+  <h3>会话管理参数</h3>
+  <pre><code># 继续最近一次会话
+claude --continue
+claude -c
+
+# 恢复指定会话
+claude --resume &lt;session-id&gt;
+claude --resume   # 显示会话选择器
+
+# 从文件加载初始提示
+claude --init-prompt-file ./prompt.md</code></pre>
+
+  <h3>权限控制参数</h3>
+  <pre><code># 指定权限模式
+claude --permission-mode default        # 默认：询问确认
+claude --permission-mode acceptEdits    # 自动接受文件编辑
+claude --permission-mode plan           # 只规划，不执行
+claude --permission-mode auto           # AI 分类器自动判断
+
+# 危险模式：跳过所有权限检查（仅在沙箱环境使用！）
+claude --dangerously-skip-permissions
+
+# 指定允许/禁止的工具
+claude --allowedTools "Read,Edit,Bash"
+claude --disallowedTools "Bash"</code></pre>
+
+  <h3>管道与自动化</h3>
+  <pre><code>cat logs.txt | claude -p "解释这些错误"
+git diff | claude -p "审查这些变更"
+npm run build 2>&amp;1 | claude -p "修复这个构建错误"
+curl -s api.example.com/data | claude -p "为这个 JSON 生成 TypeScript 类型"
+
+# 结合 jq 处理 JSON 输出
+claude -p "列出所有函数" --output-format json | jq '.functions[]'</code></pre>
+
+  <h3>完整参数列表</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>参数</th><th>简写</th><th>说明</th></tr>
+      <tr><td><code>--print</code></td><td><code>-p</code></td><td>单次查询模式，输出后退出</td></tr>
+      <tr><td><code>--output-format</code></td><td></td><td>输出格式：text / json / stream-json</td></tr>
+      <tr><td><code>--model</code></td><td></td><td>指定模型</td></tr>
+      <tr><td><code>--continue</code></td><td><code>-c</code></td><td>继续最近会话</td></tr>
+      <tr><td><code>--resume</code></td><td></td><td>恢复指定会话</td></tr>
+      <tr><td><code>--permission-mode</code></td><td></td><td>权限模式</td></tr>
+      <tr><td><code>--dangerously-skip-permissions</code></td><td></td><td>跳过所有权限检查</td></tr>
+      <tr><td><code>--allowedTools</code></td><td></td><td>允许使用的工具列表</td></tr>
+      <tr><td><code>--disallowedTools</code></td><td></td><td>禁止使用的工具列表</td></tr>
+      <tr><td><code>--system-prompt</code></td><td></td><td>自定义系统提示</td></tr>
+      <tr><td><code>--append-system-prompt</code></td><td></td><td>追加到系统提示</td></tr>
+      <tr><td><code>--max-turns</code></td><td></td><td>最大工具调用轮次</td></tr>
+      <tr><td><code>--verbose</code></td><td></td><td>显示详细日志</td></tr>
+      <tr><td><code>--no-stream</code></td><td></td><td>禁用流式输出</td></tr>
+      <tr><td><code>--version</code></td><td><code>-v</code></td><td>显示版本号</td></tr>
+      <tr><td><code>--help</code></td><td><code>-h</code></td><td>显示帮助</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══ 06 权限模式 ═══ -->
+  <h2 id="permissions">06 · 权限模式详解</h2>
+
+  <h3>五种权限模式</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>模式</th><th>行为</th><th>适用场景</th><th>切换方式</th></tr>
+      <tr>
+        <td>🔵 <strong>Default</strong></td>
+        <td>文件编辑和 Shell 命令前询问确认</td>
+        <td>日常开发，保持完整控制</td>
+        <td><code>Shift+Tab</code></td>
+      </tr>
+      <tr>
+        <td>🟢 <strong>AcceptEdits</strong></td>
+        <td>自动接受文件编辑，Shell 命令仍需确认</td>
+        <td>信任代码修改，但不想随意执行命令</td>
+        <td><code>Shift+Tab</code> 循环</td>
+      </tr>
+      <tr>
+        <td>🟡 <strong>Plan</strong></td>
+        <td>只分析和规划，不执行任何实际操作</td>
+        <td>先看方案，再决定是否执行</td>
+        <td><code>Shift+Tab</code> 循环</td>
+      </tr>
+      <tr>
+        <td>🟠 <strong>Auto</strong></td>
+        <td>AI 分类器自动评估风险，低风险自动执行</td>
+        <td>减少审批疲劳，熟悉用户适用</td>
+        <td><code>--permission-mode auto</code></td>
+      </tr>
+      <tr>
+        <td>🔴 <strong>BypassPermissions</strong></td>
+        <td>跳过所有权限检查，完全自主执行</td>
+        <td>⚠️ 仅在完全隔离的沙箱环境中使用！</td>
+        <td><code>--dangerously-skip-permissions</code></td>
+      </tr>
+    </table>
+  </div>
+
+  <h3>细粒度权限配置</h3>
+  <p>在 <code>.claude/settings.json</code> 中配置：</p>
+  <pre><code>{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Bash(git *)",
+      "Bash(npm test)",
+      "WebSearch"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Bash(curl * | bash)"
+    ],
+    "ask": [
+      "Bash"
+    ]
+  }
+}</code></pre>
+  <div class="callout callout-info">
+    <div class="callout-title">规则优先级</div>
+    <code>deny</code> &gt; <code>ask</code> &gt; <code>allow</code>
+  </div>
+
+  <!-- ═══ 07 CLAUDE.md ═══ -->
+  <h2 id="claudemd">07 · CLAUDE.md 配置指南</h2>
+
+  <h3>文件位置与优先级</h3>
+  <pre><code>优先级（高→低）
+├── ~/.claude/CLAUDE.md          全局个人配置（所有项目生效）
+├── /project-root/CLAUDE.md      项目根目录配置
+└── /project-root/src/CLAUDE.md  子目录配置（仅对该目录生效）</code></pre>
+
+  <h3>推荐 CLAUDE.md 模板</h3>
+  <pre><code># 项目名称 - Claude Code 配置
+
+## 项目概述
+这是一个 [项目类型] 项目，使用 [技术栈]。
+
+## 常用命令
+- 启动开发服务器：`npm run dev`
+- 运行测试：`npm test`
+- 构建：`npm run build`
+- 代码检查：`npm run lint`
+
+## 代码规范
+- 使用 TypeScript，严格模式
+- 函数命名：camelCase
+- 组件命名：PascalCase
+- 注释语言：中文
+- 缩进：2 空格
+
+## 重要约束
+- 不要修改 `src/legacy/` 目录下的文件
+- 所有 API 调用必须经过 `src/services/api.ts`
+- 新功能必须包含单元测试</code></pre>
+
+  <div class="callout callout-tip">
+    <div class="callout-title">💡 最佳实践</div>
+    建议 CLAUDE.md 保持在 <strong>200 行以内</strong>，过长会降低 Claude 的遵循质量。
+  </div>
+
+  <!-- ═══ 08 记忆系统 ═══ -->
+  <h2 id="memory">08 · 记忆系统使用指南</h2>
+
+  <h3>四层记忆架构</h3>
+  <pre><code>Layer 3: CLAUDE.md（人工注入，永久）
+    ↑ 每次会话开始时加载
+Layer 2: Auto Memory / MEMORY.md（自动积累，项目级）
+    ↑ Agent 自动写入，跨会话持久化
+Layer 1: Session Memory（自动提取，跨会话）
+    ↑ 后台自动保存关键信息
+Layer 0: Context Window（即时，单次会话）</code></pre>
+
+  <h3>Auto Memory 使用</h3>
+  <p>Claude Code 会自动在 <code>.claude/MEMORY.md</code> 中记录：</p>
+  <ul>
+    <li>发现的 bug 和修复方法</li>
+    <li>项目特定的命令和参数</li>
+    <li>用户偏好和工作习惯</li>
+    <li>架构决策和重要约定</li>
+  </ul>
+  <p>MEMORY.md 的前 <strong>200 行（或 25KB）</strong>会在每次对话开始时自动加载。</p>
+  <pre><code># 查看记忆
+/memory
+
+# 手动触发记忆整合（Auto Dream）
+请整合并优化你的项目记忆</code></pre>
+
+  <h3>上下文压缩触发时机</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>使用率</th><th>触发动作</th><th>用户感知</th></tr>
+      <tr><td>&lt; 64%</td><td>无操作</td><td>正常</td></tr>
+      <tr><td>64%~75%</td><td>MicroCompact（本地裁剪）</td><td>无感知</td></tr>
+      <tr><td>75%~95%</td><td>AutoCompact（生成摘要）</td><td>可能看到压缩提示</td></tr>
+      <tr><td>&gt; 95%</td><td>Full Compact（紧急压缩）</td><td>明显的压缩操作</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══ 09 会话管理 ═══ -->
+  <h2 id="sessions">09 · 会话管理</h2>
+
+  <h3>继续与恢复会话</h3>
+  <pre><code># 继续最近一次会话（最常用）
+claude --continue
+claude -c
+
+# 显示会话选择器，选择要恢复的会话
+claude --resume
+
+# 恢复特定会话（通过 session ID）
+claude --resume abc123def456</code></pre>
+
+  <h3>会话回溯（Rewind）</h3>
+  <p>在交互式会话中：</p>
+  <ol>
+    <li>双击 <code>Esc</code> 打开回溯菜单</li>
+    <li>选择要回到的历史节点</li>
+    <li>从该节点继续，形成新的对话分支（Fork）</li>
+  </ol>
+
+  <h3>并行会话（Git Worktree）</h3>
+  <pre><code># 创建新的 worktree 用于并行开发
+git worktree add ../feature-auth feature/auth
+git worktree add ../feature-payment feature/payment
+
+# 在不同终端中分别启动 Claude Code
+cd ../feature-auth &amp;&amp; claude
+cd ../feature-payment &amp;&amp; claude</code></pre>
+
+  <!-- ═══ 10 模型 ═══ -->
+  <h2 id="models">10 · 模型选择与别名</h2>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>别名</th><th>对应模型</th><th>特点</th><th>适用场景</th></tr>
+      <tr><td><code>opus</code></td><td>Claude Opus 4.6（内部代号 Fennec）</td><td>最强推理，最慢，最贵</td><td>复杂架构设计、难题攻关</td></tr>
+      <tr><td><code>sonnet</code></td><td>Claude Sonnet 4.6</td><td>均衡性能，日常首选</td><td>日常编码、代码审查</td></tr>
+      <tr><td><code>haiku</code></td><td>Claude Haiku 4.5</td><td>最快，最便宜</td><td>简单查询、快速补全</td></tr>
+      <tr><td><code>opusplan</code></td><td>Opus 规划 + Sonnet 执行</td><td>成本优化</td><td>复杂任务的经济方案</td></tr>
+      <tr><td><code>opus[1m]</code></td><td>Opus 4.6 + 1M 上下文</td><td>超大上下文</td><td>分析超大代码库</td></tr>
+      <tr><td><code>sonnet[1m]</code></td><td>Sonnet 4.6 + 1M 上下文</td><td>均衡 + 超大上下文</td><td>大型项目日常开发</td></tr>
+    </table>
+  </div>
+
+  <h3>内部模型代号（泄漏信息）</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>代号</th><th>对应模型</th><th>状态</th></tr>
+      <tr><td><strong>Capybara</strong></td><td>Claude 3.x 系列（旧版）</td><td><span class="badge badge-released">已发布</span></td></tr>
+      <tr><td><strong>Fennec</strong></td><td>Claude Opus 4.6（当前旗舰）</td><td><span class="badge badge-released">已发布</span></td></tr>
+      <tr><td><strong>Numbat</strong></td><td>Claude Opus 4.7（下一代旗舰，未发布）</td><td><span class="badge badge-unreleased">未发布</span></td></tr>
+    </table>
+  </div>
+
+  <!-- ═══ 11 MCP ═══ -->
+  <h2 id="mcp">11 · MCP 集成与扩展</h2>
+
+  <h3>MCP 配置方式</h3>
+  <p>MCP（Model Context Protocol）服务器可通过两种方式配置：</p>
+
+  <h4>方式一：settings.json 中配置</h4>
+  <pre><code>{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/dir"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "your-token"
+      }
+    }
+  }
+}</code></pre>
+
+  <h4>方式二：项目级 .mcp.json 文件</h4>
+  <pre><code>{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "DATABASE_URL": "postgresql://localhost/mydb"
+      }
+    }
+  }
+}</code></pre>
+
+  <h3>常用 MCP 服务器</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>服务器</th><th>功能</th><th>安装</th></tr>
+      <tr><td>filesystem</td><td>文件系统访问</td><td><code>@modelcontextprotocol/server-filesystem</code></td></tr>
+      <tr><td>github</td><td>GitHub API 集成</td><td><code>@modelcontextprotocol/server-github</code></td></tr>
+      <tr><td>postgres</td><td>PostgreSQL 数据库</td><td><code>@modelcontextprotocol/server-postgres</code></td></tr>
+      <tr><td>brave-search</td><td>Brave 搜索引擎</td><td><code>@modelcontextprotocol/server-brave-search</code></td></tr>
+      <tr><td>puppeteer</td><td>浏览器自动化</td><td><code>@modelcontextprotocol/server-puppeteer</code></td></tr>
+    </table>
+  </div>
+
+  <!-- ═══ 12 自定义命令 ═══ -->
+  <h2 id="custom-commands">12 · 自定义 Slash 命令</h2>
+
+  <h3>创建自定义命令</h3>
+  <p>在 <code>.claude/commands/</code> 目录下创建 Markdown 文件，文件名即命令名：</p>
+  <pre><code># 文件：.claude/commands/review.md
+请对当前的代码变更进行全面的代码审查，包括：
+1. 代码质量和可读性
+2. 潜在的 bug 和安全问题
+3. 性能影响
+4. 测试覆盖率
+5. 文档完整性
+
+请以结构化的方式输出审查结果。</code></pre>
+
+  <p>使用时：</p>
+  <pre><code>/review</code></pre>
+
+  <h3>带参数的命令</h3>
+  <pre><code># 文件：.claude/commands/test-feature.md
+请为 {{feature_name}} 功能编写完整的测试套件，包括：
+- 单元测试
+- 集成测试
+- 边界条件测试
+
+使用 {{test_framework}} 框架。</code></pre>
+
+  <!-- ═══ 13 Hooks ═══ -->
+  <h2 id="hooks">13 · Hooks 自动化配置</h2>
+
+  <h3>Hooks 类型</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Hook 类型</th><th>触发时机</th><th>用途</th></tr>
+      <tr><td><code>PreToolUse</code></td><td>工具调用前</td><td>验证、日志、阻止危险操作</td></tr>
+      <tr><td><code>PostToolUse</code></td><td>工具调用后</td><td>格式化、测试、通知</td></tr>
+      <tr><td><code>Notification</code></td><td>Claude 发送通知时</td><td>自定义通知处理</td></tr>
+      <tr><td><code>Stop</code></td><td>Claude 完成任务时</td><td>清理、报告、后处理</td></tr>
+    </table>
+  </div>
+
+  <h3>Hooks 配置示例</h3>
+  <pre><code>{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '执行命令：' $CLAUDE_TOOL_INPUT | tee -a ~/.claude/audit.log"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run lint --fix $CLAUDE_FILE_PATH"
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+
+  <!-- ═══ 14 多 Agent ═══ -->
+  <h2 id="multiagent">14 · 多 Agent 与并行工作流</h2>
+
+  <h3>子 Agent 调用</h3>
+  <p>Claude Code 可以启动子 Agent 并行处理任务：</p>
+  <pre><code>&gt; 请并行完成以下三个任务：
+  1. 为 UserService 编写单元测试
+  2. 为 AuthService 编写单元测试
+  3. 为 PaymentService 编写单元测试</code></pre>
+
+  <h3>Coordinator 模式</h3>
+  <p>启用 <code>enable_coordinator_mode</code> Feature Flag 后，Claude Code 可作为多 Agent 系统的总协调者：</p>
+  <ul>
+    <li>分解复杂任务为子任务</li>
+    <li>分配给专门的子 Agent</li>
+    <li>汇总结果并处理冲突</li>
+    <li>维护全局状态一致性</li>
+  </ul>
+
+  <h3>并行工作流最佳实践</h3>
+  <pre><code># 使用 Git Worktree 实现真正的并行
+git worktree add ../task-a main
+git worktree add ../task-b main
+git worktree add ../task-c main
+
+# 在三个终端分别运行
+cd ../task-a &amp;&amp; claude -p "实现用户认证模块" --dangerously-skip-permissions
+cd ../task-b &amp;&amp; claude -p "实现支付模块" --dangerously-skip-permissions
+cd ../task-c &amp;&amp; claude -p "实现通知模块" --dangerously-skip-permissions</code></pre>
+
+  <!-- ═══ 15 CI/CD ═══ -->
+  <h2 id="cicd">15 · CI/CD 与自动化集成</h2>
+
+  <h3>GitHub Actions 集成</h3>
+  <pre><code>name: Claude Code Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Run Code Review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          git diff origin/main...HEAD | claude -p "审查这些代码变更，重点关注安全问题和性能问题" \
+            --output-format json \
+            --allowedTools "Read" \
+            --dangerously-skip-permissions</code></pre>
+
+  <h3>自动化脚本示例</h3>
+  <pre><code>#!/bin/bash
+# 自动修复 lint 错误
+npm run lint 2>&amp;1 | claude -p "修复所有 lint 错误" \
+  --allowedTools "Read,Edit" \
+  --dangerously-skip-permissions \
+  --max-turns 10
+
+# 自动生成 changelog
+git log --oneline v1.0.0..HEAD | claude -p "根据这些 commit 生成 CHANGELOG.md" \
+  --allowedTools "Read,Write" \
+  --dangerously-skip-permissions</code></pre>
+
+  <!-- ═══ 16 Feature Flags ═══ -->
+  <h2 id="flags">16 · 44 个隐藏 Feature Flag 完整解析</h2>
+
+  <div class="callout callout-warn">
+    <div class="callout-title">⚠️ 来源说明</div>
+    以下 Feature Flag 来自 2026年3月31日 Claude Code 源码泄漏事件。部分 Flag 为内部专用或未发布功能，普通用户无法直接启用。
+  </div>
+
+  <!-- Charts -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h4>Feature Flag 状态分布</h4>
+      <canvas id="flagStatusChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h4>Feature Flag 功能分类</h4>
+      <canvas id="flagCategoryChart"></canvas>
+    </div>
+    <div class="chart-card chart-full">
+      <h4>各状态 Feature Flag 数量</h4>
+      <canvas id="flagBarChart"></canvas>
+    </div>
+  </div>
+
+  <h3>如何启用 Feature Flag</h3>
+  <pre><code># 方式一：settings.json
+{
+  "featureFlags": {
+    "enable_ultraplan": true,
+    "enable_web_browser_tool": true
+  }
+}
+
+# 方式二：环境变量
+CLAUDE_FEATURE_FLAGS=enable_ultraplan,enable_web_browser_tool claude
+
+# 方式三：CLI 参数（部分 Flag 支持）
+claude --feature-flag enable_ultraplan</code></pre>
+
+  <h3>🟢 已发布功能 Flag（用户可用）</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Flag 名称</th><th>功能说明</th><th>版本</th></tr>
+      <tr>
+        <td><code>enable_auto_memory</code></td>
+        <td><span class="flag-dot released"></span>Auto Memory 自动记忆系统，自动维护 MEMORY.md</td>
+        <td>v2.0+</td>
+      </tr>
+      <tr>
+        <td><code>enable_auto_compact</code></td>
+        <td><span class="flag-dot released"></span>上下文自动压缩，超过阈值时自动触发</td>
+        <td>v2.0+</td>
+      </tr>
+      <tr>
+        <td><code>enable_session_rewind</code></td>
+        <td><span class="flag-dot released"></span>会话回溯功能，双击 Esc 打开时间线</td>
+        <td>v2.1+</td>
+      </tr>
+      <tr>
+        <td><code>enable_voice_input</code></td>
+        <td><span class="flag-dot released"></span>语音输入模式，通过 /voice 命令启用</td>
+        <td>v2.1.80+</td>
+      </tr>
+      <tr>
+        <td><code>enable_image_paste</code></td>
+        <td><span class="flag-dot released"></span>图片粘贴分析，支持截图直接输入</td>
+        <td>v2.0+</td>
+      </tr>
+      <tr>
+        <td><code>enable_git_worktree</code></td>
+        <td><span class="flag-dot released"></span>Git Worktree 并行会话支持</td>
+        <td>v2.0+</td>
+      </tr>
+      <tr>
+        <td><code>enable_mcp_servers</code></td>
+        <td><span class="flag-dot released"></span>MCP 服务器集成支持</td>
+        <td>v2.0+</td>
+      </tr>
+      <tr>
+        <td><code>enable_custom_commands</code></td>
+        <td><span class="flag-dot released"></span>自定义 Slash 命令（.claude/commands/）</td>
+        <td>v2.0+</td>
+      </tr>
+      <tr>
+        <td><code>enable_hooks</code></td>
+        <td><span class="flag-dot released"></span>Hooks 自动化系统（PreToolUse/PostToolUse）</td>
+        <td>v2.1+</td>
+      </tr>
+      <tr>
+        <td><code>enable_permission_auto_mode</code></td>
+        <td><span class="flag-dot released"></span>AI 分类器自动权限判断模式</td>
+        <td>v2.1+</td>
+      </tr>
+      <tr>
+        <td><code>enable_opusplan</code></td>
+        <td><span class="flag-dot released"></span>Opus 规划 + Sonnet 执行的混合模式</td>
+        <td>v2.1+</td>
+      </tr>
+      <tr>
+        <td><code>enable_1m_context</code></td>
+        <td><span class="flag-dot released"></span>100万 token 超大上下文窗口</td>
+        <td>v2.1.50+</td>
+      </tr>
+      <tr>
+        <td><code>enable_teleport</code></td>
+        <td><span class="flag-dot released"></span>跨设备会话传输功能</td>
+        <td>v2.1.60+</td>
+      </tr>
+      <tr>
+        <td><code>enable_remote_env</code></td>
+        <td><span class="flag-dot released"></span>远程开发环境连接</td>
+        <td>v2.1.70+</td>
+      </tr>
+      <tr>
+        <td><code>enable_sub_agents</code></td>
+        <td><span class="flag-dot released"></span>子 Agent 并行任务执行</td>
+        <td>v2.1.75+</td>
+      </tr>
+      <tr>
+        <td><code>enable_skills</code></td>
+        <td><span class="flag-dot released"></span>自定义技能系统（.claude/skills/）</td>
+        <td>v2.1.80+</td>
+      </tr>
+    </table>
+  </div>
+
+  <h3>🟡 Beta 测试 Flag（部分用户可用）</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Flag 名称</th><th>功能说明</th><th>状态</th></tr>
+      <tr>
+        <td><code>enable_auto_dream</code></td>
+        <td><span class="flag-dot beta"></span>Auto Dream 记忆整合，后台自动优化 MEMORY.md 结构</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_micro_compact</code></td>
+        <td><span class="flag-dot beta"></span>MicroCompact 轻量压缩，64%~75% 时触发本地裁剪</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_context_prediction</code></td>
+        <td><span class="flag-dot beta"></span>上下文预测加载，预判下一步需要的文件</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_smart_tool_selection</code></td>
+        <td><span class="flag-dot beta"></span>智能工具选择，自动选择最优工具组合</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_parallel_tool_calls</code></td>
+        <td><span class="flag-dot beta"></span>并行工具调用，同时执行多个独立工具</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_streaming_edits</code></td>
+        <td><span class="flag-dot beta"></span>流式文件编辑，实时显示编辑进度</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_diff_preview</code></td>
+        <td><span class="flag-dot beta"></span>编辑前显示 diff 预览，确认后再应用</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_web_search</code></td>
+        <td><span class="flag-dot beta"></span>内置 Web 搜索工具（无需 MCP）</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_code_execution</code></td>
+        <td><span class="flag-dot beta"></span>沙箱代码执行环境（Python/JS/TS）</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_project_indexing</code></td>
+        <td><span class="flag-dot beta"></span>项目代码库索引，加速大型项目理解</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_semantic_search</code></td>
+        <td><span class="flag-dot beta"></span>语义代码搜索，超越关键词匹配</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_test_runner</code></td>
+        <td><span class="flag-dot beta"></span>内置测试运行器，自动检测并运行测试</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_lsp_integration</code></td>
+        <td><span class="flag-dot beta"></span>LSP 语言服务器集成，获取类型信息</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+      <tr>
+        <td><code>enable_git_integration</code></td>
+        <td><span class="flag-dot beta"></span>深度 Git 集成，理解提交历史和分支</td>
+        <td><span class="badge badge-beta">Beta</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <h3>🟠 未发布功能 Flag（源码中发现，尚未公开）</h3>
+  <div class="callout callout-danger">
+    <div class="callout-title">🔒 注意</div>
+    以下 Flag 来自泄漏源码，部分为 Anthropic 内部测试功能，普通用户即使设置也可能无效。
+  </div>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Flag 名称</th><th>功能说明</th><th>发现版本</th></tr>
+      <tr>
+        <td><code>enable_kairos</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>KAIROS 常驻自主 Agent 守护进程</strong> — 后台持续运行的 Agent，可监控文件变化、自动触发任务，无需用户主动发起对话</td>
+        <td>v2.1.85+</td>
+      </tr>
+      <tr>
+        <td><code>enable_ultraplan</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>ULTRAPLAN 云端规划引擎</strong> — 专用于复杂任务的 30 分钟深度规划模式，在云端生成详细执行计划后再本地执行</td>
+        <td>v2.1.92+</td>
+      </tr>
+      <tr>
+        <td><code>enable_web_browser_tool</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>WEB_BROWSER_TOOL 浏览器控制工具</strong> — 直接控制 Chrome 浏览器（Claude in Chrome），可浏览网页、填写表单、截图分析</td>
+        <td>v2.1.88+</td>
+      </tr>
+      <tr>
+        <td><code>enable_daemon</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>DAEMON 后台进程模式</strong> — 将 Claude Code 作为系统守护进程运行，支持 API 调用和事件监听，无需终端窗口</td>
+        <td>v2.1.90+</td>
+      </tr>
+      <tr>
+        <td><code>enable_agent_triggers</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>AGENT_TRIGGERS 事件驱动 Agent 激活</strong> — 基于文件系统事件、Git hooks、定时任务等自动激活 Agent，实现真正的自主工作流</td>
+        <td>v2.1.90+</td>
+      </tr>
+      <tr>
+        <td><code>enable_coordinator_mode</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>COORDINATOR_MODE 多 Agent 总协调者</strong> — 将 Claude Code 升级为多 Agent 系统的总调度器，可管理多个专门化子 Agent 的任务分配与结果汇总</td>
+        <td>v2.1.85+</td>
+      </tr>
+      <tr>
+        <td><code>enable_kairos_auto_dream</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>KAIROS 专属记忆整合</strong> — KAIROS 守护进程的记忆子系统，在用户不活跃时自动整合、压缩、优化跨项目记忆</td>
+        <td>v2.1.85+</td>
+      </tr>
+      <tr>
+        <td><code>enable_frustration_detection</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>用户情绪检测系统</strong> — 通过正则表达式检测用户输入中的挫败信号（wtf、ffs、shit、damn 等），自动调整响应策略和语气</td>
+        <td>v2.1.80+</td>
+      </tr>
+      <tr>
+        <td><code>enable_connector_text_obfuscation</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>工具调用混淆保护</strong> — 对工具调用的中间文本进行混淆，防止提示注入攻击和模型蒸馏</td>
+        <td>v2.1.82+</td>
+      </tr>
+      <tr>
+        <td><code>tengu_anti_distill_fake_tool_injection</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>反蒸馏假工具注入</strong> — 在工具调用流中注入虚假工具调用，干扰试图蒸馏 Claude Code 行为的第三方（Tengu 是 Claude Code 的内部代号）</td>
+        <td>v2.1.82+</td>
+      </tr>
+      <tr>
+        <td><code>enable_undercover_mode</code></td>
+        <td><span class="flag-dot internal"></span><strong>卧底模式（Anthropic 员工专用）</strong> — 隐藏 Claude Code 的身份标识，用于 Anthropic 内部测试和竞品分析，普通用户无法启用</td>
+        <td>内部专用</td>
+      </tr>
+      <tr>
+        <td><code>enable_opus_4_7</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>Opus 4.7 未发布版本</strong> — 对应内部代号 Numbat 的下一代旗舰模型，尚未公开发布</td>
+        <td>v2.1.95+</td>
+      </tr>
+      <tr>
+        <td><code>enable_sonnet_4_8</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>Sonnet 4.8 未发布版本</strong> — 下一代 Sonnet 模型，性能和速度均有提升</td>
+        <td>v2.1.95+</td>
+      </tr>
+      <tr>
+        <td><code>enable_plugin_ecosystem</code></td>
+        <td><span class="flag-dot unreleased"></span><strong>插件生态系统</strong> — 支持第三方开发者发布和安装 Claude Code 插件，扩展工具和能力</td>
+        <td>v2.1.90+</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ═══ 17 重要文件与目录 ═══ -->
+  <h2 id="files">17 · 重要文件与目录完整说明</h2>
+
+  <div class="callout callout-info">
+    <div class="callout-title">📁 本章说明</div>
+    本章详细介绍 Claude Code 涉及的所有重要文件和目录，包括其位置、作用、格式和注意事项。理解这些文件是深度使用 Claude Code 的基础。
+  </div>
+
+  <h3>完整目录结构</h3>
+  <div class="file-tree">
+    <span class="dir">~/.claude/</span>                    <span class="comment"># 全局用户目录</span><br>
+    ├── <span class="file">settings.json</span>             <span class="comment"># 全局配置（所有项目生效）</span><br>
+    ├── <span class="file">keybindings.json</span>          <span class="comment"># 自定义快捷键</span><br>
+    ├── <span class="file">CLAUDE.md</span>                 <span class="comment"># 全局项目指令（所有项目注入）</span><br>
+    ├── <span class="file">MEMORY.md</span>                 <span class="comment"># 全局 Auto Memory 索引</span><br>
+    ├── <span class="dir">skills/</span>                   <span class="comment"># 自定义技能目录</span><br>
+    │   └── <span class="dir">&lt;name&gt;/</span><br>
+    │       └── <span class="file">SKILL.md</span>          <span class="comment"># 技能定义文件（含 YAML frontmatter）</span><br>
+    ├── <span class="dir">commands/</span>                 <span class="comment"># 全局自定义命令</span><br>
+    │   └── <span class="file">&lt;name&gt;.md</span>             <span class="comment"># 命令文件（文件名即命令名）</span><br>
+    └── <span class="dir">projects/</span>                 <span class="comment"># 会话历史存储</span><br>
+        └── <span class="dir">&lt;encoded-cwd&gt;/</span><br>
+            └── <span class="file">*.jsonl</span>           <span class="comment"># 会话消息记录（每条消息一行 JSON）</span><br>
+    <br>
+    <span class="dir">~/.claude.json</span>                <span class="comment"># ⚠️ 系统状态文件（在 ~/.claude/ 目录外！）</span><br>
+    <br>
+    <span class="dir">/project-root/</span>                <span class="comment"># 项目根目录</span><br>
+    ├── <span class="file">CLAUDE.md</span>                 <span class="comment"># 项目级指令文件</span><br>
+    ├── <span class="file">.mcp.json</span>                 <span class="comment"># 项目级 MCP 配置</span><br>
+    └── <span class="dir">.claude/</span>                  <span class="comment"># 项目级 Claude 配置目录</span><br>
+        ├── <span class="file">settings.json</span>         <span class="comment"># 项目共享配置（可提交 git）</span><br>
+        ├── <span class="file">settings.local.json</span>   <span class="comment"># 个人本地配置（git ignore！）</span><br>
+        ├── <span class="file">MEMORY.md</span>             <span class="comment"># 项目级 Auto Memory</span><br>
+        ├── <span class="dir">commands/</span>             <span class="comment"># 项目级自定义命令</span><br>
+        └── <span class="dir">skills/</span>               <span class="comment"># 项目级自定义技能</span><br>
+    <br>
+    <span class="comment"># 企业托管配置（系统级，不可被用户覆盖）</span><br>
+    <span class="file">/etc/claude-code/managed-settings.json</span>          <span class="comment"># Linux</span><br>
+    <span class="file">/Library/Application Support/ClaudeCode/managed-settings.json</span>  <span class="comment"># macOS</span><br>
+    <span class="file">C:\Program Files\ClaudeCode\managed-settings.json</span>  <span class="comment"># Windows</span>
+  </div>
+
+  <h3>核心文件详解</h3>
+
+  <!-- CLAUDE.md -->
+  <div class="file-card">
+    <div class="file-name">CLAUDE.md</div>
+    <div class="file-path">~/.claude/CLAUDE.md &nbsp;|&nbsp; /project-root/CLAUDE.md &nbsp;|&nbsp; /project-root/src/CLAUDE.md</div>
+    <div class="file-desc">
+      <strong>项目指令文件</strong> — 每次会话开始时自动注入到系统提示中，是 Claude Code 最重要的配置文件。
+      <ul style="margin-top:8px;">
+        <li>支持多级层叠：全局 → 项目根目录 → 子目录，优先级从低到高</li>
+        <li>建议保持在 <strong>200 行以内</strong>，过长会降低 Claude 的遵循质量</li>
+        <li>适合写入：项目概述、常用命令、代码规范、架构说明、禁止操作</li>
+        <li>项目级 CLAUDE.md 建议提交到 git，方便团队共享</li>
+      </ul>
+    </div>
+    <div class="file-tags">
+      <span class="file-tag">自动加载</span>
+      <span class="file-tag">多级层叠</span>
+      <span class="file-tag">建议提交 git</span>
+      <span class="file-tag">200行限制</span>
+    </div>
+  </div>
+
+  <!-- MEMORY.md -->
+  <div class="file-card">
+    <div class="file-name">MEMORY.md</div>
+    <div class="file-path">~/.claude/MEMORY.md &nbsp;|&nbsp; /project-root/.claude/MEMORY.md</div>
+    <div class="file-desc">
+      <strong>Auto Memory 索引文件</strong> — 由 Claude Code 自动维护的记忆文件，跨会话持久化项目知识。
+      <ul style="margin-top:8px;">
+        <li>前 <strong>200 行（或 25KB）</strong>会在每次对话开始时自动加载</li>
+        <li>Claude 自动写入：发现的 bug、修复方法、项目约定、用户偏好</li>
+        <li>可通过 <code>/memory</code> 命令查看和手动编辑</li>
+        <li>Auto Dream 功能会定期整合和优化 MEMORY.md 的结构</li>
+        <li>⚠️ 不建议手动大幅修改，可能破坏 Claude 的记忆索引</li>
+      </ul>
+    </div>
+    <div class="file-tags">
+      <span class="file-tag">自动维护</span>
+      <span class="file-tag">前200行加载</span>
+      <span class="file-tag">跨会话持久化</span>
+      <span class="file-tag">可选提交 git</span>
+    </div>
+  </div>
+
+  <!-- settings.json -->
+  <div class="file-card">
+    <div class="file-name">settings.json</div>
+    <div class="file-path">~/.claude/settings.json &nbsp;|&nbsp; /project-root/.claude/settings.json</div>
+    <div class="file-desc">
+      <strong>核心配置文件</strong> — Claude Code 的主要配置文件，控制权限、模型、MCP 服务器等所有核心行为。
+      <ul style="margin-top:8px;">
+        <li><strong>全局配置</strong>（<code>~/.claude/settings.json</code>）：对所有项目生效</li>
+        <li><strong>项目共享配置</strong>（<code>.claude/settings.json</code>）：团队共享，建议提交 git</li>
+        <li><strong>项目本地配置</strong>（<code>.claude/settings.local.json</code>）：个人专用，加入 .gitignore</li>
+        <li>优先级：本地配置 &gt; 项目共享配置 &gt; 全局配置 &gt; 企业托管配置</li>
+      </ul>
+    </div>
+    <div class="file-tags">
+      <span class="file-tag">核心配置</span>
+      <span class="file-tag">三级层叠</span>
+      <span class="file-tag">项目级建议提交 git</span>
+    </div>
+  </div>
+
+  <h4>settings.json 完整结构示例</h4>
+  <pre><code>{
+  // 权限配置
+  "permissions": {
+    "allow": ["Read", "Edit", "Bash(git *)", "Bash(npm *)"],
+    "deny": ["Bash(rm -rf *)", "Bash(sudo *)"],
+    "ask": ["Bash"]
+  },
+
+  // 默认模型
+  "model": "sonnet",
+
+  // MCP 服务器配置
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    }
+  },
+
+  // Feature Flags
+  "featureFlags": {
+    "enable_auto_memory": true,
+    "enable_auto_compact": true,
+    "enable_hooks": true
+  },
+
+  // Hooks 配置
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [{ "type": "command", "command": "npm run lint --fix" }]
+      }
+    ]
+  },
+
+  // 环境变量（传递给工具）
+  "env": {
+    "NODE_ENV": "development"
+  }
+}</code></pre>
+
+  <!-- settings.local.json -->
+  <div class="file-card">
+    <div class="file-name">settings.local.json</div>
+    <div class="file-path">/project-root/.claude/settings.local.json</div>
+    <div class="file-desc">
+      <strong>个人本地配置文件</strong> — 仅对当前用户生效，不应提交到 git。
+      <ul style="margin-top:8px;">
+        <li>适合存放个人 API Key、个人偏好、本地路径等敏感或个性化配置</li>
+        <li>会覆盖 <code>settings.json</code> 中的同名配置项</li>
+        <li>务必将 <code>.claude/settings.local.json</code> 加入 <code>.gitignore</code></li>
+      </ul>
+    </div>
+    <div class="file-tags">
+      <span class="file-tag">个人专用</span>
+      <span class="file-tag">⚠️ 加入 .gitignore</span>
+      <span class="file-tag">覆盖 settings.json</span>
+    </div>
+  </div>
+
+  <!-- managed-settings.json -->
+  <div class="file-card">
+    <div class="file-name">managed-settings.json</div>
+    <div class="file-path">
+      Linux: /etc/claude-code/managed-settings.json<br>
+      macOS: /Library/Application Support/ClaudeCode/managed-settings.json<br>
+      Windows: C:\Program Files\ClaudeCode\managed-settings.json
+    </div>
+    <div class="file-desc">
+      <strong>企业托管配置文件</strong> — 由 IT 管理员部署的系统级配置，优先级最高，用户无法覆盖。
+      <ul style="margin-top:8px;">
+        <li>适合企业统一管控：禁止特定工具、强制使用内部 API 端点、限制模型选择</li>
+        <li>用户的所有配置文件都无法覆盖此文件中的设置</li>
+        <li>需要系统管理员权限才能修改</li>
+      </ul>
+    </div>
+    <div class="file-tags">
+      <span class="file-tag">企业专用</span>
+      <span class="file-tag">最高优先级</span>
+      <span class="file-tag">用户不可覆盖</span>
+      <span class="file-tag">需管理员权限</span>
+    </div>
+  </div>
+
+  <!-- .mcp.json -->
+  <div class="file-card">
+    <div class="file-name">.mcp.json</div>
+    <div class="file-path">/project-root/.mcp.json</div>
+    <div class="file-desc">
+      <strong>项目级 MCP 配置文件</strong> — 独立于 settings.json 的 MCP 服务器配置，专门用于项目级 MCP 集成。
+      <ul style="margin-top:8px;">
+        <li>与 settings.json 中的 mcpServers 配置合并生效</li>
+        <li>适合将 MCP 配置与其他项目配置分离管理</li>
+        <li>建议提交到 git，方便团队共享 MCP 配置</li>
+        <li>支持 stdio 和 SSE 两种传输协议</li>
+      </ul>
+    </div>
+    <div class="file-tags">
+      <span class="file-tag">MCP 专用</span>
+      <span class="file-tag">建议提交 git</span>
+      <span class="file-tag">与 settings.json 合并</span>
+    </div>
+  </div>
+
+  <h4>.mcp.json 格式示例</h4>
+  <pre><code>{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "DATABASE_URL": "postgresql://localhost/mydb"
+      }
+    },
+    "internal-api": {
+      "type": "sse",
+      "url": "https://mcp.internal.company.com/sse",
+      "headers": {
+        "Authorization": "Bearer ${MCP_TOKEN}"
+      }
+    }
+  }
+}</code></pre>
+
+  <!-- ~/.claude.json -->
+  <div class="file-card">
+    <div class="file-name">~/.claude.json</div>
+    <div class="file-path">~/.claude.json &nbsp;（注意：在 ~/.claude/ 目录外！）</div>
+    <div class="file-desc">
+      <strong>系统状态文件</strong> — Claude Code 的运行时状态存储，包含认证信息和缓存数据。
+      <ul style="margin-top:8px;">
+        <li>存储 OAuth Token、API Key 缓存、用户账户信息</li>
+        <li>存储 Claude Code 的运行时状态和偏好缓存</li>
+        <li>⚠️ <strong>绝对不要提交到 git</strong>，包含敏感认证信息</li>
+        <li>⚠️ 注意：此文件在 <code>~/.claude/</code> 目录外，是独立的隐藏文件</li>
+        <li>删除此文件会导致需要重新登录</li>
+      </ul>
+    </div>
+    <div class="file-tags">
+      <span class="file-tag">认证信息</span>
+      <span class="file-tag">⚠️ 绝不提交 git</span>
+      <span class="file-tag">运行时状态</span>
+      <span class="file-tag">在 ~/.claude/ 外</span>
+    </div>
+  </div>
+
+  <!-- keybindings.json -->
+  <div class="file-card">
+    <div class="file-name">keybindings.json</div>
+    <div class="file-path">~/.claude/keybindings.json</div>
+    <div class="file-desc">
+      <strong>自定义快捷键配置</strong> — 定义 Claude Code 交互界面中的自定义键盘快捷键。
+      <ul style="margin-top:8px;">
+        <li>通过 <code>/keybindings</code> 命令可视化管理，或直接编辑此文件</li>
+        <li>支持绑定任意 Slash 命令、模型切换、自定义操作</li>
+        <li>支持 Ctrl、Shift、Alt、Cmd 等修饰键组合</li>
+      </ul>
+    </div>
+    <div class="file-tags">
+      <span class="file-tag">快捷键</span>
+      <span class="file-tag">全局生效</span>
+      <span class="file-tag">/keybindings 管理</span>
+    </div>
+  </div>
+
+  <h3>commands/ 目录</h3>
+  <div class="file-card">
+    <div class="file-name">commands/</div>
+    <div class="file-path">~/.claude/commands/ &nbsp;|&nbsp; /project-root/.claude/commands/</div>
+    <div class="file-desc">
+      <strong>自定义 Slash 命令目录</strong> — 存放自定义命令的 Markdown 文件，文件名即命令名。
+      <ul style="margin-top:8px;">
+        <li>文件名（不含 .md 扩展名）即为命令名，如 <code>review.md</code> → <code>/review</code></li>
+        <li>文件内容为命令的提示词模板，支持 <code>{{变量名}}</code> 占位符</li>
+        <li>全局命令（<code>~/.claude/commands/</code>）对所有项目生效</li>
+        <li>项目命令（<code>.claude/commands/</code>）仅对当前项目生效，优先级更高</li>
+      </ul>
+    </div>
+    <div class="file-tags">
+      <span class="file-tag">自定义命令</span>
+      <span class="file-tag">文件名即命令名</span>
+      <span class="file-tag">支持变量占位符</span>
+    </div>
+  </div>
+
+  <h3>skills/ 目录</h3>
+  <div class="file-card">
+    <div class="file-name">skills/</div>
+    <div class="file-path">~/.claude/skills/ &nbsp;|&nbsp; /project-root/.claude/skills/</div>
+    <div class="file-desc">
+      <strong>自定义技能目录</strong> — 存放自定义技能定义文件，扩展 Claude Code 的专业能力。
+      <ul style="margin-top:8px;">
+        <li>每个技能是一个子目录，包含 <code>SKILL.md</code> 文件</li>
+        <li>SKILL.md 使用 YAML frontmatter 定义技能元数据（名称、描述、触发条件）</li>
+        <li>技能内容描述 Claude 在特定场景下应遵循的专业知识和行为规范</li>
+        <li>可用于定义领域专家角色、代码风格规范、特定框架最佳实践等</li>
+      </ul>
+    </div>
+    <div class="file-tags">
+      <span class="file-tag">自定义技能</span>
+      <span class="file-tag">YAML frontmatter</span>
+      <span class="file-tag">领域专家角色</span>
+    </div>
+  </div>
+
+  <h4>SKILL.md 格式示例</h4>
+  <pre><code>---
+name: react-expert
+description: React 18 最佳实践专家
+triggers:
+  - "*.tsx"
+  - "*.jsx"
+  - "React"
+  - "组件"
+---
+
+# React 18 最佳实践
+
+## 核心原则
+- 优先使用函数组件和 Hooks
+- 避免不必要的 useEffect
+- 使用 React.memo 优化渲染性能
+
+## 状态管理
+- 简单状态：useState
+- 复杂状态：useReducer
+- 全局状态：Zustand（不推荐 Redux）
+
+## 性能优化
+- useMemo 缓存计算结果
+- useCallback 缓存函数引用
+- React.lazy + Suspense 懒加载</code></pre>
+
+  <h3>sessions/ 会话历史</h3>
+  <div class="file-card">
+    <div class="file-name">projects/&lt;encoded-cwd&gt;/*.jsonl</div>
+    <div class="file-path">~/.claude/projects/&lt;encoded-cwd&gt;/&lt;session-id&gt;.jsonl</div>
+    <div class="file-desc">
+      <strong>会话历史存储</strong> — 所有会话的完整消息记录，以 JSONL 格式存储。
+      <ul style="margin-top:8px;">
+        <li><code>&lt;encoded-cwd&gt;</code> 是当前工作目录路径的 URL 编码形式</li>
+        <li>每个 <code>.jsonl</code> 文件对应一个会话，每行是一条消息的 JSON</li>
+        <li>通过 <code>claude --resume</code> 可以恢复历史会话</li>
+        <li>会话文件会随时间积累，可定期清理旧会话释放磁盘空间</li>
+        <li>⚠️ 会话文件可能包含敏感代码和数据，注意保护</li>
+      </ul>
+    </div>
+    <div class="file-tags">
+      <span class="file-tag">JSONL 格式</span>
+      <span class="file-tag">会话恢复</span>
+      <span class="file-tag">可定期清理</span>
+      <span class="file-tag">⚠️ 含敏感数据</span>
+    </div>
+  </div>
+
+  <h3>配置优先级总览</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>优先级</th><th>配置文件</th><th>作用范围</th><th>是否可覆盖</th></tr>
+      <tr><td>最高</td><td><code>managed-settings.json</code>（企业托管）</td><td>系统级</td><td>❌ 不可覆盖</td></tr>
+      <tr><td>高</td><td><code>.claude/settings.local.json</code></td><td>项目本地</td><td>✅ 覆盖下方</td></tr>
+      <tr><td>中</td><td><code>.claude/settings.json</code></td><td>项目共享</td><td>✅ 覆盖下方</td></tr>
+      <tr><td>低</td><td><code>~/.claude/settings.json</code></td><td>全局用户</td><td>✅ 基础配置</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══ 18 企业配置 ═══ -->
+  <h2 id="enterprise">18 · 企业与团队配置</h2>
+
+  <h3>企业部署最佳实践</h3>
+  <pre><code># 企业托管配置示例（managed-settings.json）
+{
+  "permissions": {
+    "deny": [
+      "Bash(curl * | bash)",
+      "Bash(wget * | bash)",
+      "Bash(sudo *)"
+    ]
+  },
+  "mcpServers": {
+    "internal-tools": {
+      "type": "sse",
+      "url": "https://mcp.company.internal/sse"
+    }
+  },
+  "featureFlags": {
+    "enable_undercover_mode": false,
+    "enable_web_browser_tool": false
+  },
+  "apiEndpoint": "https://api.company.internal/anthropic-proxy"
+}</code></pre>
+
+  <h3>团队 .claude/ 目录结构建议</h3>
+  <pre><code>.claude/
+├── settings.json          # 提交 git：团队共享配置
+├── settings.local.json    # 加入 .gitignore：个人配置
+├── MEMORY.md              # 可选提交：项目知识库
+├── commands/
+│   ├── review.md          # 提交 git：团队共享命令
+│   ├── deploy.md          # 提交 git：部署命令
+│   └── test.md            # 提交 git：测试命令
+└── skills/
+    └── domain-expert/
+        └── SKILL.md       # 提交 git：领域专家技能</code></pre>
+
+  <h3>.gitignore 推荐配置</h3>
+  <pre><code># Claude Code 相关
+.claude/settings.local.json
+~/.claude.json
+
+# 可选：不提交会话历史
+.claude/sessions/</code></pre>
+
+  <!-- ═══ 19 使用场景 ═══ -->
+  <h2 id="examples">19 · 常见使用场景示例</h2>
+
+  <h3>场景一：大型代码库快速上手</h3>
+  <pre><code>&gt; 请分析这个项目的整体架构，包括：
+  1. 主要模块和它们的职责
+  2. 数据流向
+  3. 关键的设计模式
+  4. 潜在的技术债务
+  请生成一份架构文档保存到 docs/architecture.md</code></pre>
+
+  <h3>场景二：TDD 开发流程</h3>
+  <pre><code>&gt; 我要实现一个用户认证模块，请：
+  1. 先写测试用例（TDD）
+  2. 然后实现代码让测试通过
+  3. 最后重构优化
+  要求：使用 Jest，覆盖率 &gt; 90%</code></pre>
+
+  <h3>场景三：代码审查与安全检查</h3>
+  <pre><code>git diff main...feature/payment | claude -p "
+请对这个 PR 进行安全审查，重点关注：
+1. SQL 注入风险
+2. XSS 漏洞
+3. 认证和授权问题
+4. 敏感数据泄露
+5. 第三方依赖安全性
+输出格式：JSON，包含风险等级（high/medium/low）和修复建议
+" --output-format json</code></pre>
+
+  <h3>场景四：自动化重构</h3>
+  <pre><code>&gt; 请将 src/ 目录下所有使用 class 组件的 React 代码重构为函数组件：
+  - 使用 Hooks 替代生命周期方法
+  - 保持功能完全一致
+  - 每个文件修改后运行对应的测试确保通过
+  - 生成重构报告</code></pre>
+
+  <h3>场景五：文档自动生成</h3>
+  <pre><code>&gt; 请为整个项目生成完整的 API 文档：
+  1. 扫描所有 TypeScript 接口和类型定义
+  2. 提取 JSDoc 注释
+  3. 生成 OpenAPI 3.0 规范文件
+  4. 生成 Markdown 格式的开发者文档
+  保存到 docs/ 目录</code></pre>
+
+  <h3>场景六：性能分析与优化</h3>
+  <pre><code>npm run build 2>&amp;1 | claude -p "
+分析这个构建输出：
+1. 找出最大的 bundle 文件
+2. 识别可以代码分割的模块
+3. 找出重复依赖
+4. 给出具体的优化建议和实现代码
+"</code></pre>
+
+  <hr>
+  <p style="text-align:center; color: var(--text2); font-size: 12px; padding: 20px 0;">
+    Claude Code 用户完整使用手册 v2.0 · 基于官方文档 + 2026年3月31日源码泄漏内容整合<br>
+    更新日期：2026年4月7日 · 44个 Feature Flag（含14个未发布/内部专用）
+  </p>
+
+</main>
+</div><!-- /.layout -->
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHARTS
+═══════════════════════════════════════════════════════════ -->
+<script>
+const chartDefaults = {
+  color: '#8b949e',
+  font: { family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", size: 12 }
+};
+Chart.defaults.color = chartDefaults.color;
+Chart.defaults.font = chartDefaults.font;
+
+// 1. 状态分布 Doughnut
+new Chart(document.getElementById('flagStatusChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['已发布', 'Beta 测试', '未发布', '内部专用'],
+    datasets: [{
+      data: [16, 14, 13, 1],
+      backgroundColor: ['#3fb950', '#d29922', '#f0883e', '#f85149'],
+      borderColor: '#21262d',
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } }
+    }
+  }
+});
+
+// 2. 功能分类 Doughnut
+new Chart(document.getElementById('flagCategoryChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['记忆与上下文', '工具与集成', 'Agent 与自动化', '安全与保护', '模型与性能', '用户体验'],
+    datasets: [{
+      data: [8, 9, 8, 4, 6, 9],
+      backgroundColor: ['#58a6ff', '#79c0ff', '#bc8cff', '#f85149', '#3fb950', '#d29922'],
+      borderColor: '#21262d',
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 10, font: { size: 10 } } }
+    }
+  }
+});
+
+// 3. 横向柱状图
+new Chart(document.getElementById('flagBarChart'), {
+  type: 'bar',
+  data: {
+    labels: ['已发布（用户可用）', 'Beta 测试（部分用户）', '未发布（源码发现）', '内部专用（Anthropic）'],
+    datasets: [{
+      label: 'Feature Flag 数量',
+      data: [16, 14, 13, 1],
+      backgroundColor: ['#3fb950', '#d29922', '#f0883e', '#f85149'],
+      borderRadius: 6,
+      borderSkipped: false
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.raw} 个 Feature Flag`
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: '#21262d' },
+        ticks: { stepSize: 2 }
+      },
+      y: {
+        grid: { display: false }
+      }
+    }
+  }
+});
+</script>
+
+</body>
+<script>
+// ── Detail dropdown ──
+(function() {
+  var btn = document.getElementById('detailDropBtn');
+  var panel = document.getElementById('detailDropPanel');
+  if (!btn || !panel) return;
+
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    panel.classList.toggle('open');
+    btn.classList.toggle('open');
+  });
+
+  document.addEventListener('click', function() {
+    panel.classList.remove('open');
+    btn.classList.remove('open');
+  });
+
+  panel.addEventListener('click', function(e) {
+    e.stopPropagation();
+  });
+})();
+
+// ── Sidebar active on scroll (IntersectionObserver) ──
+(function() {
+  const links = document.querySelectorAll('.sidebar-link');
+  if (!links.length) return;
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          links.forEach(l => l.classList.remove('active'));
+          const id = entry.target.id;
+          const active = document.querySelector('.sidebar-link[href="#' + id + '"]');
+          if (active) active.classList.add('active');
+        }
+      });
+    },
+    { rootMargin: '-10% 0px -80% 0px', threshold: 0 }
+  );
+
+  links.forEach(link => {
+    const id = link.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) observer.observe(el);
+  });
+
+  // Click also updates active immediately
+  links.forEach(link => {
+    link.addEventListener('click', () => {
+      links.forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+    });
+  });
+})();
+</script>
+</html>

@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code 架构深度拆解与开源生态全景报告</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --accent3: #f78166;
+    --accent4: #d2a8ff;
+    --accent5: #ffa657;
+    --accent6: #79c0ff;
+    --warn: #e3b341;
+    --danger: #f85149;
+    --topnav-h: 60px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+    line-height: 1.6;
+  }
+  .topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    height: var(--topnav-h);
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+  }
+  .topnav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 700; color: #fff; text-decoration: none;
+    flex-shrink: 0; border-radius: 6px; transition: background 0.15s;
+    padding: 4px 8px; margin: -4px -8px;
+  }
+  .topnav-logo:hover { background: var(--bg3); text-decoration: none; }
+  .topnav-logo .logo-icon { font-size: 20px; }
+  .topnav-logo .logo-badge {
+    font-size: 10px; background: var(--accent); color: #000;
+    padding: 1px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;
+  }
+  .topnav-links { display: flex; align-items: center; gap: 4px; }
+  .topnav-links a {
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+  }
+  .topnav-links a:hover { color: var(--text); background: var(--bg3); }
+  .topnav-links a.active { color: var(--accent); }
+  .topnav-right { display: flex; align-items: center; gap: 12px; }
+  .version-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--accent2); font-weight: 600;
+  }
+  .dropdown { position: relative; }
+  .dropdown-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+    cursor: pointer; border: none; background: none;
+    font-family: inherit;
+  }
+  .dropdown-btn:hover, .dropdown-btn.open { color: var(--text); background: var(--bg3); }
+  .dropdown-btn .arrow { font-size: 10px; transition: transform 0.2s; }
+  .dropdown-btn.open .arrow { transform: rotate(180deg); }
+  .dropdown-panel {
+    display: none;
+    position: absolute; top: calc(100% + 8px); right: 0;
+    min-width: 380px;
+    background: rgba(13,17,23,0.97);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    z-index: 2000;
+  }
+  .dropdown-panel.open { display: block; }
+  .dropdown-group { margin-bottom: 12px; }
+  .dropdown-group:last-child { margin-bottom: 0; }
+  .dropdown-group-title {
+    font-size: 10px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0 8px 6px;
+  }
+  .dropdown-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--text2);
+    text-decoration: none; transition: all 0.15s;
+  }
+  .dropdown-item:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
+  .dropdown-item.active { color: var(--accent); background: rgba(88,166,255,0.08); }
+  .dropdown-item .di-icon { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+  .dropdown-item .di-text { flex: 1; }
+  .dropdown-sep { height: 1px; background: var(--border); margin: 8px 0; }
+  /* Header */
+  .hero {
+    background: linear-gradient(135deg, #0d1117 0%, #1a1f2e 50%, #0d1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: calc(var(--topnav-h) + 60px) 40px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at center, rgba(88,166,255,0.05) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(248,81,73,0.15);
+    border: 1px solid rgba(248,81,73,0.4);
+    color: #f85149;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: clamp(24px, 4vw, 42px);
+    font-weight: 700;
+    background: linear-gradient(135deg, #58a6ff, #d2a8ff, #79c0ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+  }
+  .hero p {
+    color: var(--text2);
+    font-size: 16px;
+    max-width: 700px;
+    margin: 0 auto 24px;
+  }
+  .hero-meta {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .hero-meta span {
+    color: var(--text2);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hero-meta .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); display: inline-block; }
+
+  /* Nav */
+  .nav {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    position: sticky;
+    top: var(--topnav-h);
+    z-index: 100;
+  }
+  .nav a {
+    color: var(--text2);
+    text-decoration: none;
+    padding: 14px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .nav a:hover { color: var(--text); border-bottom-color: var(--accent); }
+
+  /* Layout */
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+  .section { margin-bottom: 60px; }
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title .icon { font-size: 20px; }
+  .section-subtitle { color: var(--text2); font-size: 14px; margin-bottom: 28px; }
+  .divider { height: 1px; background: var(--border); margin: 40px 0; }
+
+  /* Cards */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .card-desc { color: var(--text2); font-size: 14px; line-height: 1.6; }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+
+  /* Timeline */
+  .timeline { position: relative; padding-left: 32px; }
+  .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 28px; }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -28px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+  }
+  .timeline-item.danger::before { background: var(--danger); }
+  .timeline-item.warn::before { background: var(--warn); }
+  .timeline-date { font-size: 12px; color: var(--text2); margin-bottom: 4px; font-family: monospace; }
+  .timeline-content { font-size: 14px; color: var(--text); }
+  .timeline-content strong { color: var(--accent); }
+
+  /* Stats */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+  .stat-value { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .stat-label { font-size: 12px; color: var(--text2); }
+
+  /* Architecture diagram */
+  .arch-diagram {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    overflow-x: auto;
+  }
+  .arch-layer {
+    border: 1px solid;
+    border-radius: 8px;
+    padding: 14px 20px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s;
+    cursor: default;
+  }
+  .arch-layer:hover { transform: translateX(4px); }
+  .arch-layer.l1 { border-color: rgba(88,166,255,0.4); background: rgba(88,166,255,0.05); }
+  .arch-layer.l2 { border-color: rgba(63,185,80,0.4); background: rgba(63,185,80,0.05); }
+  .arch-layer.l3 { border-color: rgba(210,168,255,0.4); background: rgba(210,168,255,0.05); }
+  .arch-layer.l4 { border-color: rgba(255,166,87,0.4); background: rgba(255,166,87,0.05); }
+  .arch-layer.l5 { border-color: rgba(248,81,73,0.4); background: rgba(248,81,73,0.05); }
+  .arch-layer.l6 { border-color: rgba(227,179,65,0.4); background: rgba(227,179,65,0.05); }
+  .arch-layer-name { font-weight: 700; font-size: 14px; min-width: 180px; }
+  .arch-layer-desc { color: var(--text2); font-size: 13px; font-family: -apple-system, sans-serif; }
+  .arch-arrow { text-align: center; color: var(--text2); font-size: 18px; margin: 2px 0; }
+
+  /* Code block */
+  .code-block {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    overflow-x: auto;
+    line-height: 1.7;
+  }
+  .code-comment { color: #6e7681; }
+  .code-key { color: var(--accent4); }
+  .code-val { color: var(--accent2); }
+  .code-str { color: var(--accent5); }
+  .code-fn { color: var(--accent); }
+
+  /* Memory layers */
+  .memory-stack { display: flex; flex-direction: column; gap: 0; }
+  .memory-layer {
+    padding: 18px 24px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: all 0.2s;
+    cursor: default;
+  }
+  .memory-layer:first-child { border-radius: 12px 12px 0 0; }
+  .memory-layer:last-child { border-radius: 0 0 12px 12px; }
+  .memory-layer:not(:last-child) { border-bottom: none; }
+  .memory-layer:hover { background: var(--bg3); }
+  .memory-layer.m0 { background: rgba(248,81,73,0.05); border-color: rgba(248,81,73,0.3); }
+  .memory-layer.m1 { background: rgba(255,166,87,0.05); border-color: rgba(255,166,87,0.3); }
+  .memory-layer.m2 { background: rgba(63,185,80,0.05); border-color: rgba(63,185,80,0.3); }
+  .memory-layer.m3 { background: rgba(88,166,255,0.05); border-color: rgba(88,166,255,0.3); }
+  .memory-badge {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .memory-info { flex: 1; }
+  .memory-name { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+  .memory-desc { color: var(--text2); font-size: 13px; }
+  .memory-meta { text-align: right; font-size: 12px; color: var(--text2); }
+
+  /* Tool tiers */
+  .tool-tier {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .tool-tier-header {
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .tool-tier-body { padding: 16px 20px; }
+  .tool-tier.t1 .tool-tier-header { background: rgba(63,185,80,0.1); border-bottom: 1px solid rgba(63,185,80,0.2); }
+  .tool-tier.t2 .tool-tier-header { background: rgba(227,179,65,0.1); border-bottom: 1px solid rgba(227,179,65,0.2); }
+  .tool-tier.t3 .tool-tier-header { background: rgba(248,81,73,0.1); border-bottom: 1px solid rgba(248,81,73,0.2); }
+  .tool-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tool-tag {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-family: monospace;
+    color: var(--text2);
+  }
+
+  /* Project cards */
+  .project-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    transition: all 0.2s;
+  }
+  .project-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .project-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+  .project-name { font-size: 18px; font-weight: 700; color: var(--accent); }
+  .project-lang {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .lang-go { color: #00acd7; border-color: rgba(0,172,215,0.4); background: rgba(0,172,215,0.1); }
+  .lang-py { color: #3572a5; border-color: rgba(53,114,165,0.4); background: rgba(53,114,165,0.1); }
+  .lang-ts { color: #3178c6; border-color: rgba(49,120,198,0.4); background: rgba(49,120,198,0.1); }
+  .lang-rs { color: #dea584; border-color: rgba(222,165,132,0.4); background: rgba(222,165,132,0.1); }
+  .project-desc { color: var(--text2); font-size: 13px; margin-bottom: 16px; line-height: 1.6; }
+  .project-features { list-style: none; }
+  .project-features li {
+    font-size: 13px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: var(--text2);
+  }
+  .project-features li:last-child { border-bottom: none; }
+  .project-features li::before { content: '→'; color: var(--accent); flex-shrink: 0; }
+  .stars { color: var(--warn); font-size: 13px; }
+
+  /* Compression flow */
+  .compress-flow { display: flex; flex-direction: column; gap: 0; }
+  .compress-step {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+  }
+  .compress-step:first-child { border-radius: 10px 10px 0 0; }
+  .compress-step:last-child { border-radius: 0 0 10px 10px; }
+  .compress-step:not(:last-child) { border-bottom: none; }
+  .compress-step:hover { background: var(--bg3); }
+  .compress-pct {
+    font-size: 13px;
+    font-weight: 700;
+    font-family: monospace;
+    min-width: 80px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    text-align: center;
+  }
+  .compress-step.c0 .compress-pct { background: rgba(63,185,80,0.15); color: var(--accent2); }
+  .compress-step.c1 .compress-pct { background: rgba(227,179,65,0.15); color: var(--warn); }
+  .compress-step.c2 .compress-pct { background: rgba(255,166,87,0.15); color: var(--accent5); }
+  .compress-step.c3 .compress-pct { background: rgba(248,81,73,0.15); color: var(--danger); }
+  .compress-name { font-weight: 600; font-size: 14px; min-width: 140px; }
+  .compress-desc { color: var(--text2); font-size: 13px; }
+
+  /* Chart containers */
+  .chart-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .chart-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--text2); }
+  canvas { max-height: 300px; }
+
+  /* Feature flags */
+  .flag-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    border-left: 3px solid var(--accent4);
+  }
+  .flag-name { font-family: monospace; font-size: 15px; font-weight: 700; color: var(--accent4); margin-bottom: 6px; }
+  .flag-status {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .status-unreleased { background: rgba(248,81,73,0.15); color: var(--danger); border: 1px solid rgba(248,81,73,0.3); }
+  .status-internal { background: rgba(227,179,65,0.15); color: var(--warn); border: 1px solid rgba(227,179,65,0.3); }
+  .flag-desc { color: var(--text2); font-size: 13px; line-height: 1.6; }
+
+  /* Insight box */
+  .insight-box {
+    background: rgba(88,166,255,0.05);
+    border: 1px solid rgba(88,166,255,0.2);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-top: 20px;
+  }
+  .insight-box h4 { color: var(--accent); font-size: 14px; margin-bottom: 8px; }
+  .insight-box p { color: var(--text2); font-size: 13px; line-height: 1.7; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    background: var(--bg3);
+    color: var(--text2);
+    font-weight: 600;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
+  tr:hover td { background: var(--bg3); }
+  tr:last-child td { border-bottom: none; }
+
+  /* Footer */
+  footer {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 32px 40px;
+    text-align: center;
+    color: var(--text2);
+    font-size: 13px;
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .topnav-links { display: none; }
+  }
+  @media (max-width: 768px) {
+    .hero { padding: calc(var(--topnav-h) + 40px) 20px 30px; }
+    .nav { padding: 0 16px; top: var(--topnav-h); }
+    .container { padding: 24px 16px; }
+    .arch-layer-desc { display: none; }
+    .dropdown-panel { right: -16px; min-width: calc(100vw - 32px); }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">
+    <span class="logo-icon">⚡</span>
+    <span>Claude Code</span>
+    <span class="logo-badge">深度解析</span>
+  </a>
+  <div class="topnav-links">
+    <a href="#">技术模块</a>
+    <a href="#">使用指南</a>
+    <div class="dropdown">
+      <button class="dropdown-btn" id="detailDropBtn">
+        详细拆解 <span class="arrow">▾</span>
+      </button>
+      <div class="dropdown-panel" id="detailDropPanel">
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">🔧 核心引擎</div>
+          <a href="claude_code_harness.html" class="dropdown-item"><span class="di-icon">🔧</span><span class="di-text">Harness 执行引擎</span></a>
+          <a href="claude_code_context.html" class="dropdown-item"><span class="di-icon">🧠</span><span class="di-text">Context 上下文系统</span></a>
+          <a href="claude_code_memory.html" class="dropdown-item"><span class="di-icon">💾</span><span class="di-text">Memory 记忆系统</span></a>
+          <a href="claude_code_tools.html" class="dropdown-item"><span class="di-icon">🛠️</span><span class="di-text">Tool System 工具系统</span></a>
+          <a href="claude_code_agent_loop.html" class="dropdown-item"><span class="di-icon">🔄</span><span class="di-text">Agent Loop 执行循环</span></a>
+          <a href="claude_code_multi_agent.html" class="dropdown-item"><span class="di-icon">🤝</span><span class="di-text">Multi-Agent 多智能体</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📖 使用指南</div>
+          <a href="claude_code_user_manual.html" class="dropdown-item"><span class="di-icon">📖</span><span class="di-text">用户完整手册</span></a>
+          <a href="claude_code_prompt_guide.html" class="dropdown-item"><span class="di-icon">✍️</span><span class="di-text">Prompt 工程指南</span></a>
+          <a href="claude_code_cases.html" class="dropdown-item"><span class="di-icon">🚀</span><span class="di-text">实战案例库</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📊 深度报告</div>
+          <a href="claude_code_comparison.html" class="dropdown-item"><span class="di-icon">⚖️</span><span class="di-text">工具对比分析</span></a>
+          <a href="claude_code_report.html" class="dropdown-item active"><span class="di-icon">🏗️</span><span class="di-text">架构深度拆解报告</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="topnav-right">
+    <span class="version-badge">✦ 2026 Q2</span>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-badge">🔓 源码泄漏事件深度分析</div>
+  <h1>Claude Code 架构深度拆解<br>与开源生态全景报告</h1>
+  <p>基于 2026年3月31日 npm 包源码泄漏事件，对 Claude Code 内部架构、执行框架、记忆系统及开源改造生态的全面技术分析</p>
+  <div class="hero-meta">
+    <span><span class="dot"></span> 报告日期：2026年4月7日</span>
+    <span><span class="dot" style="background:#f85149"></span> 泄漏规模：513,000 行 TypeScript</span>
+    <span><span class="dot" style="background:#d2a8ff"></span> 1,906 个文件 · 59.8 MB</span>
+    <span><span class="dot" style="background:#ffa657"></span> 7 大开源改造项目</span>
+  </div>
+</div>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html">🏠 返回首页</a>
+  <a href="#leak">泄漏事件</a>
+  <a href="#arch">整体架构</a>
+  <a href="#engine">Query Engine</a>
+  <a href="#harness">执行框架</a>
+  <a href="#tools">工具系统</a>
+  <a href="#memory">记忆系统</a>
+  <a href="#security">权限安全</a>
+  <a href="#multiagent">多Agent</a>
+  <a href="#hidden">隐藏特性</a>
+  <a href="#opensource">开源项目</a>
+  <a href="#insights">设计启示</a>
+  <span style="flex:1"></span>
+  <a href="claude_code_harness.html">🔧 Harness</a>
+  <a href="claude_code_context.html">🧠 Context</a>
+  <a href="claude_code_memory.html">💾 Memory</a>
+  <a href="claude_code_tools.html">🛠️ 工具</a>
+  <a href="claude_code_agent_loop.html">🔄 Loop</a>
+  <a href="claude_code_multi_agent.html">🤝 多Agent</a>
+  <a href="claude_code_user_manual.html">📖 手册</a>
+  <a href="claude_code_prompt_guide.html">✍️ Prompt</a>
+  <a href="claude_code_cases.html">🚀 案例</a>
+  <a href="claude_code_comparison.html">⚖️ 对比</a>
+</nav>
+
+<div class="container">
+
+  <!-- 泄漏事件 -->
+  <section class="section" id="leak">
+    <div class="section-title"><span class="icon">🔓</span> 泄漏事件背景</div>
+    <div class="section-subtitle">2026年3月31日，Anthropic 意外将完整源码打包进公开 npm 包</div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value" style="color:#f85149">513K</div>
+        <div class="stat-label">泄漏代码行数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:#ffa657">1,906</div>
+        <div class="stat-label">TypeScript 文件数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:#d2a8ff">59.8MB</div>
+        <div class="stat-label">.map 文件大小</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:#3fb950">44</div>
+        <div class="stat-label">隐藏 Feature Flag</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:#58a6ff">v2.1.88</div>
+        <div class="stat-label">泄漏版本号</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">📅 事件时间线</div>
+        <div style="margin-top:16px">
+          <div class="timeline">
+            <div class="timeline-item warn">
+              <div class="timeline-date">2025年2月</div>
+              <div class="timeline-content">第一次小规模泄漏，部分源码暴露</div>
+            </div>
+            <div class="timeline-item danger">
+              <div class="timeline-date">2026年3月31日</div>
+              <div class="timeline-content"><strong>主要泄漏事件</strong>：npm 包 <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:12px">@anthropic-ai/claude-code</code> v2.1.88 意外包含完整 .map 源码映射文件</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-date">2026年3月31日（同日）</div>
+              <div class="timeline-content">安全研究员 Chaofan Shou 在 X 上公开披露，代码迅速在 GitHub 上被镜像，成为 GitHub 历史上增长最快的仓库之一</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-date">2026年4月初</div>
+              <div class="timeline-content">Anthropic 发出 DMCA 版权下架请求；多个 clean-room 重实现项目涌现；发现一个严重安全漏洞</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">💬 Anthropic 官方声明</div>
+        <blockquote style="border-left:3px solid var(--accent);padding-left:16px;margin:16px 0;color:var(--text2);font-style:italic;font-size:14px">
+          "这是一次由人为错误导致的发布打包问题，不是安全漏洞，没有敏感客户数据或凭证泄漏。"
+        </blockquote>
+        <div class="card-title" style="margin-top:20px">🌊 社区反应</div>
+        <div class="card-desc" style="margin-top:8px">
+          开发者和研究者迅速开始分析泄漏代码，发现了未发布功能、内部模型代号（Capybara、Tengu）、三层记忆系统和多 Agent 编排能力。"Undercover Mode"的发现引发了关于透明度和信任的激烈讨论。
+        </div>
+        <div class="insight-box" style="margin-top:16px">
+          <h4>🎓 社区共识</h4>
+          <p>尽管对 Anthropic 来说是一次尴尬事件，但开源社区普遍认为这是一份构建生产级 AI Agent 的无价蓝图。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 整体架构 -->
+  <section class="section" id="arch">
+    <div class="section-title"><span class="icon">🏗️</span> 整体架构概览</div>
+    <div class="section-subtitle">基于 TypeScript + Bun 运行时的六层模块化架构</div>
+
+    <div class="grid-2">
+      <div>
+        <div class="arch-diagram">
+          <div class="arch-layer l1">
+            <div class="arch-layer-name" style="color:#58a6ff">🖥️ Presentation Layer</div>
+            <div class="arch-layer-desc">Terminal UI · React + Ink 框架渲染</div>
+          </div>
+          <div class="arch-arrow">↕</div>
+          <div class="arch-layer l2">
+            <div class="arch-layer-name" style="color:#3fb950">⚙️ Application Layer</div>
+            <div class="arch-layer-desc">业务规则 · 命令系统 · 配置管理</div>
+          </div>
+          <div class="arch-arrow">↕</div>
+          <div class="arch-layer l3">
+            <div class="arch-layer-name" style="color:#d2a8ff">🎯 Orchestration Layer</div>
+            <div class="arch-layer-desc">Query Engine · Multi-Agent Router · Hook System</div>
+          </div>
+          <div class="arch-arrow">↕</div>
+          <div class="arch-layer l4">
+            <div class="arch-layer-name" style="color:#ffa657">🤖 AI Layer</div>
+            <div class="arch-layer-desc">Claude API 调用 · 工具调用循环 · 上下文压缩</div>
+          </div>
+          <div class="arch-arrow">↕</div>
+          <div class="arch-layer l5">
+            <div class="arch-layer-name" style="color:#f85149">🔧 Tool Registry</div>
+            <div class="arch-layer-desc">38~60+ 工具 · MCP 集成 · 权限分层</div>
+          </div>
+          <div class="arch-arrow">↕</div>
+          <div class="arch-layer l6">
+            <div class="arch-layer-name" style="color:#e3b341">🧠 Memory System</div>
+            <div class="arch-layer-desc">CLAUDE.md · Auto Memory · Session Memory · Auto Dream</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">🛠️ 技术栈</div>
+          <div style="margin-top:12px">
+            <table>
+              <tr><th>组件</th><th>技术选型</th><th>说明</th></tr>
+              <tr><td>运行时</td><td><span style="color:#ffa657;font-weight:600">Bun</span></td><td style="color:var(--text2)">替代 Node.js，更快启动</td></tr>
+              <tr><td>终端 UI</td><td><span style="color:#58a6ff;font-weight:600">React + Ink</span></td><td style="color:var(--text2)">终端中渲染 React 组件</td></tr>
+              <tr><td>Schema 验证</td><td><span style="color:#3fb950;font-weight:600">Zod v4</span></td><td style="color:var(--text2)">工具输入/输出类型安全</td></tr>
+              <tr><td>语言</td><td><span style="color:#d2a8ff;font-weight:600">TypeScript</span></td><td style="color:var(--text2)">全量类型覆盖</td></tr>
+              <tr><td>核心文件</td><td><span style="color:#f85149;font-weight:600">QueryEngine.ts</span></td><td style="color:var(--text2)">约 46,000 行</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-title">代码规模分布（估算）</div>
+          <canvas id="codeChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Query Engine -->
+  <section class="section" id="engine">
+    <div class="section-title"><span class="icon">⚡</span> Query Engine — 会话心脏</div>
+    <div class="section-subtitle">QueryEngine.ts · 约 46,000 行 · 管理单次对话的完整生命周期</div>
+
+    <div class="grid-3" style="margin-bottom:24px">
+      <div class="card">
+        <div class="card-title" style="color:#58a6ff">🌊 流式响应管理</div>
+        <div class="card-desc">处理 SSE 流，实时渲染 token 到终端 UI，支持中断和恢复</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#3fb950">🔄 工具调用循环</div>
+        <div class="card-desc">检测 tool_use → 执行工具 → 注入结果 → 继续推理，无限循环直到任务完成</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#d2a8ff">🧠 Thinking Mode 预算</div>
+        <div class="card-desc">控制 extended thinking 的 token 预算，平衡推理深度与成本</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#ffa657">🔁 API 失败自动重试</div>
+        <div class="card-desc">指数退避策略 + 错误分类处理，区分可重试错误和致命错误</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#f85149">📊 Token 计数追踪</div>
+        <div class="card-desc">实时统计输入/输出 token 消耗，为上下文压缩提供触发信号</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#e3b341">📦 上下文窗口管理</div>
+        <div class="card-desc">监控 context 使用率，触发分级压缩策略，防止超出限制</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔄 核心 Agentic Loop（工具调用循环）</div>
+      <div style="margin-top:16px;overflow-x:auto">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px">
+          <div style="background:rgba(88,166,255,0.1);border:1px solid rgba(88,166,255,0.3);border-radius:8px;padding:10px 16px;text-align:center">
+            <div style="font-size:18px">👤</div>
+            <div style="color:var(--accent);font-weight:600">用户输入</div>
+          </div>
+          <div style="color:var(--text2);font-size:20px">→</div>
+          <div style="background:rgba(210,168,255,0.1);border:1px solid rgba(210,168,255,0.3);border-radius:8px;padding:10px 16px;text-align:center">
+            <div style="font-size:18px">⚡</div>
+            <div style="color:#d2a8ff;font-weight:600">QueryEngine</div>
+            <div style="color:var(--text2);font-size:11px">构建消息列表</div>
+          </div>
+          <div style="color:var(--text2);font-size:20px">→</div>
+          <div style="background:rgba(255,166,87,0.1);border:1px solid rgba(255,166,87,0.3);border-radius:8px;padding:10px 16px;text-align:center">
+            <div style="font-size:18px">🤖</div>
+            <div style="color:#ffa657;font-weight:600">Claude API</div>
+            <div style="color:var(--text2);font-size:11px">流式调用</div>
+          </div>
+          <div style="color:var(--text2);font-size:20px">→</div>
+          <div style="background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.3);border-radius:8px;padding:10px 16px;text-align:center">
+            <div style="font-size:18px">🔍</div>
+            <div style="color:#3fb950;font-weight:600">解析响应</div>
+          </div>
+          <div style="color:var(--text2);font-size:20px">→</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.3);border-radius:8px;padding:8px 14px;font-size:12px;color:#3fb950">✅ 纯文本 → 渲染输出，结束</div>
+            <div style="background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.3);border-radius:8px;padding:8px 14px;font-size:12px;color:#f85149">🔧 tool_use → 执行工具 → 注入结果 → 循环</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 执行框架 Harness -->
+  <section class="section" id="harness">
+    <div class="section-title"><span class="icon">🎯</span> Agent 执行框架 (Harness)</div>
+    <div class="section-subtitle">以工具为中心的 Agentic 执行框架，支持单 Agent、子 Agent 和 Agent 团队三种模式</div>
+
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="card">
+        <div class="card-title" style="color:#58a6ff">🔧 Hooks 系统 — 确定性控制层</div>
+        <div class="card-desc" style="margin-bottom:16px">用户自定义 Shell 命令，在 Agent 生命周期特定节点触发，无论 AI 推理结果如何都必然执行</div>
+        <div class="code-block">
+<span class="code-comment"># hooks 配置示例</span>
+<span class="code-key">hooks</span>:
+  <span class="code-key">pre_tool_use</span>:
+    - <span class="code-key">command</span>: <span class="code-str">"safety-check.sh"</span>
+      <span class="code-comment"># 工具执行前安全检查</span>
+  <span class="code-key">post_tool_use</span>:
+    - <span class="code-key">command</span>: <span class="code-str">"audit-log.sh"</span>
+      <span class="code-comment"># 工具执行后审计日志</span>
+  <span class="code-key">pre_bash</span>:
+    - <span class="code-key">command</span>: <span class="code-str">"sandbox-validate.sh"</span>
+      <span class="code-comment"># Bash 执行前沙箱验证</span>
+        </div>
+        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">
+          <span style="background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.3);color:#3fb950;padding:4px 10px;border-radius:6px;font-size:12px">✓ 确定性执行</span>
+          <span style="background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.3);color:#f85149;padding:4px 10px;border-radius:6px;font-size:12px">✓ 可阻断危险操作</span>
+          <span style="background:rgba(88,166,255,0.1);border:1px solid rgba(88,166,255,0.3);color:#58a6ff;padding:4px 10px;border-radius:6px;font-size:12px">✓ 防 Prompt Injection</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#d2a8ff">🔀 程序化工具调用</div>
+        <div class="card-desc" style="margin-bottom:16px">Agent 通过生成代码来编排多个工具，支持循环、条件分支、并行执行等复杂控制流</div>
+        <div class="code-block">
+<span class="code-comment"># Agent 生成的编排代码示例</span>
+<span class="code-key">import</span> subprocess
+
+<span class="code-fn">files</span> = <span class="code-fn">list_directory</span>(<span class="code-str">"./src"</span>)
+<span class="code-key">for</span> f <span class="code-key">in</span> files:
+    content = <span class="code-fn">read_file</span>(f)
+    <span class="code-key">if</span> <span class="code-str">"TODO"</span> <span class="code-key">in</span> content:
+        <span class="code-fn">edit_file</span>(f, <span class="code-fn">fix_todos</span>(content))
+        </div>
+        <div class="insight-box" style="margin-top:12px">
+          <h4>💡 设计价值</h4>
+          <p>相比顺序 API 调用，程序化编排减少了 LLM 调用次数，提高了执行效率和可靠性。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 工具系统 -->
+  <section class="section" id="tools">
+    <div class="section-title"><span class="icon">🔧</span> 工具系统 (Tool System)</div>
+    <div class="section-subtitle">38~60+ 工具 · 三层权限模型 · AI 分类器自动评估风险</div>
+
+    <div class="grid-2">
+      <div>
+        <div class="tool-tier t1">
+          <div class="tool-tier-header">
+            <span style="color:#3fb950;font-size:18px">🟢</span>
+            <span style="color:#3fb950">Tier 1 — 自动批准（Auto-approved）</span>
+          </div>
+          <div class="tool-tier-body">
+            <div class="card-desc" style="margin-bottom:12px">只读操作，无需用户确认，自动执行</div>
+            <div class="tool-tags">
+              <span class="tool-tag">FileReadTool</span>
+              <span class="tool-tag">DirectoryListTool</span>
+              <span class="tool-tag">WebSearchTool</span>
+              <span class="tool-tag">WebFetchTool</span>
+            </div>
+          </div>
+        </div>
+        <div class="tool-tier t2">
+          <div class="tool-tier-header">
+            <span style="color:#e3b341;font-size:18px">🟡</span>
+            <span style="color:#e3b341">Tier 2 — 提示确认（Prompt for confirmation）</span>
+          </div>
+          <div class="tool-tier-body">
+            <div class="card-desc" style="margin-bottom:12px">修改状态的操作，提示用户确认</div>
+            <div class="tool-tags">
+              <span class="tool-tag">FileWriteTool</span>
+              <span class="tool-tag">FileEditTool</span>
+              <span class="tool-tag">CreateFileTool</span>
+            </div>
+          </div>
+        </div>
+        <div class="tool-tier t3">
+          <div class="tool-tier-header">
+            <span style="color:#f85149;font-size:18px">🔴</span>
+            <span style="color:#f85149">Tier 3 — 需要明确批准或阻断</span>
+          </div>
+          <div class="tool-tier-body">
+            <div class="card-desc" style="margin-bottom:12px">高风险操作，需要明确人工判断</div>
+            <div class="tool-tags">
+              <span class="tool-tag">BashTool</span>
+              <span class="tool-tag">DeleteFileTool</span>
+              <span class="tool-tag">NetworkTool</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="chart-wrap" style="margin-bottom:16px">
+          <div class="chart-title">工具激活模式分布</div>
+          <canvas id="toolChart"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">🔍 Tool Search Tool（元工具）</div>
+          <div class="card-desc" style="margin-top:8px">允许 Agent 在运行时<strong style="color:var(--accent)">按需发现和加载工具</strong>，避免将所有工具定义塞入上下文窗口，显著节省 token 消耗。</div>
+          <div class="card-title" style="margin-top:16px">🛡️ BashTool 安全设计</div>
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:13px;color:var(--text2);display:flex;gap:8px"><span style="color:#f85149">→</span> Shell 注入防御：确定性解析逻辑，执行前命令分类</div>
+            <div style="font-size:13px;color:var(--text2);display:flex;gap:8px"><span style="color:#f85149">→</span> OS 级沙箱：限制文件系统和网络访问范围</div>
+            <div style="font-size:13px;color:var(--text2);display:flex;gap:8px"><span style="color:#f85149">→</span> 命令白名单/黑名单：可配置的允许/拒绝规则</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 记忆系统 -->
+  <section class="section" id="memory">
+    <div class="section-title"><span class="icon">🧠</span> 记忆系统 (Memory System)</div>
+    <div class="section-subtitle">四层记忆架构 + 三级上下文压缩 + Auto Dream 记忆整合</div>
+
+    <div class="grid-2" style="margin-bottom:24px">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:12px">四层记忆架构（从短期到长期）</div>
+        <div class="memory-stack">
+          <div class="memory-layer m0">
+            <div class="memory-badge" style="background:rgba(248,81,73,0.15)">⚡</div>
+            <div class="memory-info">
+              <div class="memory-name" style="color:#f85149">Layer 0: Context Window</div>
+              <div class="memory-desc">即时工作记忆 · 200K tokens · 当前对话、工具输出、文件内容</div>
+            </div>
+            <div class="memory-meta">单次会话</div>
+          </div>
+          <div class="memory-layer m1">
+            <div class="memory-badge" style="background:rgba(255,166,87,0.15)">📝</div>
+            <div class="memory-info">
+              <div class="memory-name" style="color:#ffa657">Layer 1: Session Memory</div>
+              <div class="memory-desc">后台自动提取对话关键信息 · 达到 token 阈值触发 · 结构化摘要写入磁盘</div>
+            </div>
+            <div class="memory-meta">跨会话持久化</div>
+          </div>
+          <div class="memory-layer m2">
+            <div class="memory-badge" style="background:rgba(63,185,80,0.15)">📚</div>
+            <div class="memory-info">
+              <div class="memory-name" style="color:#3fb950">Layer 2: Auto Memory / MEMORY.md</div>
+              <div class="memory-desc">Agent 自动生成笔记 · 错误修复、命令参数、架构决策 · MEMORY.md 作为索引</div>
+            </div>
+            <div class="memory-meta">项目级持久化</div>
+          </div>
+          <div class="memory-layer m3">
+            <div class="memory-badge" style="background:rgba(88,166,255,0.15)">📋</div>
+            <div class="memory-info">
+              <div class="memory-name" style="color:#58a6ff">Layer 3: CLAUDE.md</div>
+              <div class="memory-desc">用户手动维护 · 构建命令、代码规范、架构说明 · 每次会话开始时自动注入</div>
+            </div>
+            <div class="memory-meta">永久（手动维护）</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:12px">三级上下文压缩策略</div>
+        <div class="compress-flow">
+          <div class="compress-step c0">
+            <div class="compress-pct">&lt; 64%</div>
+            <div class="compress-name">正常运行</div>
+            <div class="compress-desc">无压缩，正常推理</div>
+          </div>
+          <div class="compress-step c1">
+            <div class="compress-pct">64%~75%</div>
+            <div class="compress-name">MicroCompact</div>
+            <div class="compress-desc">本地裁剪旧工具输出，无 API 调用，零成本</div>
+          </div>
+          <div class="compress-step c2">
+            <div class="compress-pct">75%~95%</div>
+            <div class="compress-name">AutoCompact</div>
+            <div class="compress-desc">生成结构化会话摘要，保留关键信息，预留 token buffer</div>
+          </div>
+          <div class="compress-step c3">
+            <div class="compress-pct">&gt; 95%</div>
+            <div class="compress-name">Full Compact</div>
+            <div class="compress-desc">紧急全面压缩 + 选择性重注入关键信息</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auto Dream -->
+    <div class="card">
+      <div class="card-title">🌙 Auto Dream — 记忆整合系统（类比人类 REM 睡眠）</div>
+      <div class="card-desc" style="margin:12px 0">在空闲期间运行，整合、剪枝和重组记忆文件，防止长期项目中记忆退化</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:16px">
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="color:#58a6ff;font-weight:600;font-size:13px;margin-bottom:6px">Phase 1: Orientation</div>
+          <div style="color:var(--text2);font-size:12px">扫描所有记忆文件，建立全局视图</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="color:#3fb950;font-weight:600;font-size:13px;margin-bottom:6px">Phase 2: Gather Signal</div>
+          <div style="color:var(--text2);font-size:12px">识别高频访问、近期变更、冲突条目</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="color:#d2a8ff;font-weight:600;font-size:13px;margin-bottom:6px">Phase 3: Consolidation</div>
+          <div style="color:var(--text2);font-size:12px">合并相关信息，更新过时内容</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="color:#ffa657;font-weight:600;font-size:13px;margin-bottom:6px">Phase 4: Prune & Index</div>
+          <div style="color:var(--text2);font-size:12px">删除陈旧条目，重建 MEMORY.md 索引</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--text2)">⏰ 触发条件：</span>
+        <span style="background:var(--bg3);border:1px solid var(--border);padding:3px 10px;border-radius:6px;font-size:12px">空闲 24 小时 + 累计 5 次会话</span>
+        <span style="background:var(--bg3);border:1px solid var(--border);padding:3px 10px;border-radius:6px;font-size:12px">用户手动触发</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 权限安全 -->
+  <section class="section" id="security">
+    <div class="section-title"><span class="icon">🛡️</span> 权限与安全系统</div>
+    <div class="section-subtitle">三层权限模型 + AI 分类器 + OS 级沙箱</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">🤖 AI 分类器（Auto Mode）</div>
+        <div class="card-desc" style="margin:12px 0">实时评估每个拟执行操作的风险等级，自动决策是否需要人工介入</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+          <div style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(63,185,80,0.05);border:1px solid rgba(63,185,80,0.2);border-radius:8px">
+            <span style="font-size:18px">🟢</span>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#3fb950">低风险 → 自动执行</div>
+              <div style="font-size:12px;color:var(--text2)">减少审批疲劳，提升效率</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(227,179,65,0.05);border:1px solid rgba(227,179,65,0.2);border-radius:8px">
+            <span style="font-size:18px">🟡</span>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#e3b341">中风险 → 提示用户确认</div>
+              <div style="font-size:12px;color:var(--text2)">保持人工监督</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(248,81,73,0.05);border:1px solid rgba(248,81,73,0.2);border-radius:8px">
+            <span style="font-size:18px">🔴</span>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#f85149">高风险 → 阻断 / 明确批准</div>
+              <div style="font-size:12px;color:var(--text2)">需要明确人工判断</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚖️ 权限规则优先级</div>
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:4px">
+          <div style="background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.3);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:20px">🚫</span>
+            <div>
+              <div style="font-weight:700;color:#f85149">deny rules（拒绝规则）</div>
+              <div style="font-size:12px;color:var(--text2)">最高优先级，始终生效</div>
+            </div>
+            <span style="margin-left:auto;color:#f85149;font-weight:700">P1</span>
+          </div>
+          <div style="text-align:center;color:var(--text2);font-size:18px">↓</div>
+          <div style="background:rgba(227,179,65,0.1);border:1px solid rgba(227,179,65,0.3);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:20px">❓</span>
+            <div>
+              <div style="font-weight:700;color:#e3b341">ask rules（询问规则）</div>
+              <div style="font-size:12px;color:var(--text2)">中等优先级</div>
+            </div>
+            <span style="margin-left:auto;color:#e3b341;font-weight:700">P2</span>
+          </div>
+          <div style="text-align:center;color:var(--text2);font-size:18px">↓</div>
+          <div style="background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.3);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:20px">✅</span>
+            <div>
+              <div style="font-weight:700;color:#3fb950">allow rules（允许规则）</div>
+              <div style="font-size:12px;color:var(--text2)">最低优先级</div>
+            </div>
+            <span style="margin-left:auto;color:#3fb950;font-weight:700">P3</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 多 Agent -->
+  <section class="section" id="multiagent">
+    <div class="section-title"><span class="icon">🤝</span> 多 Agent 编排</div>
+    <div class="section-subtitle">Subagent + Agent Teams 两种协作模式，支持顺序/并发/交接/群聊四种编排模式</div>
+
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="card">
+        <div class="card-title" style="color:#58a6ff">🔹 Subagent（子 Agent）</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:13px;color:var(--text2);display:flex;gap:8px"><span style="color:#58a6ff">→</span> 父 Agent 通过 AgentTool 内联创建</div>
+          <div style="font-size:13px;color:var(--text2);display:flex;gap:8px"><span style="color:#58a6ff">→</span> 独立 context window，隔离执行</div>
+          <div style="font-size:13px;color:var(--text2);display:flex;gap:8px"><span style="color:#58a6ff">→</span> 运行至完成后返回结果给父 Agent</div>
+          <div style="font-size:13px;color:var(--text2);display:flex;gap:8px"><span style="color:#58a6ff">→</span> 适用：并行子任务、隔离危险操作</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#d2a8ff">🔸 Agent Teams（Agent 团队）</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:13px;color:var(--text2);display:flex;gap:8px"><span style="color:#d2a8ff">→</span> 预定义命名 Agent 组，共享目标</div>
+          <div style="font-size:13px;color:var(--text2);display:flex;gap:8px"><span style="color:#d2a8ff">→</span> Lead Agent 协调工作分配</div>
+          <div style="font-size:13px;color:var(--text2);display:flex;gap:8px"><span style="color:#d2a8ff">→</span> Teammate Agent 各自独立 context window</div>
+          <div style="font-size:13px;color:var(--text2);display:flex;gap:8px"><span style="color:#d2a8ff">→</span> Agent 间可直接通信</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔀 四种编排模式</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:16px">
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="color:#58a6ff;font-weight:600;margin-bottom:6px">Sequential（顺序）</div>
+          <div style="font-size:12px;color:var(--text2);font-family:monospace">A → B → C</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:4px">依赖关系明确的任务链</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="color:#3fb950;font-weight:600;margin-bottom:6px">Concurrent（并发）</div>
+          <div style="font-size:12px;color:var(--text2);font-family:monospace">A + B 同时运行</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:4px">独立子任务并行加速</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="color:#ffa657;font-weight:600;margin-bottom:6px">Handoff（交接）</div>
+          <div style="font-size:12px;color:var(--text2);font-family:monospace">A 完成 → 移交给 B</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:4px">专业化分工协作</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="color:#d2a8ff;font-weight:600;margin-bottom:6px">Group Chat（群聊）</div>
+          <div style="font-size:12px;color:var(--text2);font-family:monospace">多 Agent 协商决策</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:4px">复杂问题集体智慧</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 隐藏特性 -->
+  <section class="section" id="hidden">
+    <div class="section-title"><span class="icon">🔮</span> 隐藏特性与内部彩蛋</div>
+    <div class="section-subtitle">44 个隐藏 Feature Flag 揭示的未发布功能与内部机密</div>
+
+    <div class="grid-3">
+      <div class="flag-card">
+        <div class="flag-name">KAIROS</div>
+        <div><span class="flag-status status-unreleased">未发布</span></div>
+        <div class="flag-desc">「Always-on」常驻自主 Agent 模式。推测功能：后台持续运行，主动监控代码库变化并提出建议，无需用户主动触发。</div>
+      </div>
+      <div class="flag-card" style="border-left-color:#f85149">
+        <div class="flag-name" style="color:#f85149">Undercover Mode</div>
+        <div><span class="flag-status status-internal">内部功能</span></div>
+        <div class="flag-desc">检测到 Anthropic 员工时自动激活。注入系统提示，要求 AI 从 git commit 和 PR 中移除所有 Anthropic 内部信息（AI 归因、内部代号 Tengu 等）。<br><br><strong style="color:#f85149">⚠️ 引发开源社区强烈批评</strong></div>
+      </div>
+      <div class="flag-card" style="border-left-color:#ffa657">
+        <div class="flag-name" style="color:#ffa657">内部模型代号</div>
+        <div><span class="flag-status status-internal">内部机密</span></div>
+        <div class="flag-desc">
+          <strong style="color:#ffa657">Capybara</strong>（也称 Mythos）：Claude 4.6 变体，内部注释显示已到第 8 版，1M token 上下文窗口。<br><br>
+          <strong style="color:#ffa657">Tengu</strong>：另一 Claude 变体，在 Undercover Mode 中被列为需要隐藏的词汇。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 开源项目 -->
+  <section class="section" id="opensource">
+    <div class="section-title"><span class="icon">🌐</span> 开源改造项目全景</div>
+    <div class="section-subtitle">泄漏事件后涌现的 7 大开源项目，各有侧重的改造方向</div>
+
+    <div class="chart-wrap" style="margin-bottom:28px">
+      <div class="chart-title">开源项目改造维度雷达图对比</div>
+      <canvas id="radarChart" style="max-height:380px"></canvas>
+    </div>
+
+    <div class="grid-2">
+
+      <div class="project-card">
+        <div class="project-header">
+          <div>
+            <div class="project-name">OpenCode</div>
+            <div style="color:var(--text2);font-size:12px;margin-top:2px">opencode-ai/opencode</div>
+          </div>
+          <span class="project-lang lang-go">Go</span>
+        </div>
+        <div class="stars">⭐⭐⭐⭐⭐ 数万 Star · 最具影响力</div>
+        <div class="project-desc" style="margin-top:8px">生产级、Provider 无关的终端 AI 编程 Agent，最直接的 Claude Code 开源替代品</div>
+        <ul class="project-features">
+          <li><strong>Provider 无关化</strong>：支持 75+ LLM Provider，彻底解除 Anthropic 绑定</li>
+          <li><strong>双 Agent 架构</strong>：Plan Agent（只读分析）+ Build Agent（执行变更），分离分析与执行</li>
+          <li><strong>LSP 集成</strong>：原生 Language Server Protocol 支持，提升代码智能质量</li>
+          <li><strong>隐私优先</strong>：代码不经过第三方服务器，支持完全本地化部署</li>
+          <li><strong>客户端/服务器架构</strong>：支持远程操作和多会话并发</li>
+        </ul>
+      </div>
+
+      <div class="project-card">
+        <div class="project-header">
+          <div>
+            <div class="project-name">Cline</div>
+            <div style="color:var(--text2);font-size:12px;margin-top:2px">cline/cline（原 Claude Dev）</div>
+          </div>
+          <span class="project-lang lang-ts">TypeScript</span>
+        </div>
+        <div class="stars">⭐⭐⭐⭐⭐ VS Code 生态最强</div>
+        <div class="project-desc" style="margin-top:8px">VS Code 插件形态的自主编程 Agent，IDE 深度集成，可视化审批界面</div>
+        <ul class="project-features">
+          <li><strong>IDE 深度集成</strong>：利用 VS Code 文件树、终端、调试器，超越纯终端体验</li>
+          <li><strong>MCP 生态扩展</strong>：完整支持 Model Context Protocol，接入 Notion/Slack/数据库</li>
+          <li><strong>可视化审批</strong>：侧边栏展示每步操作，用户可逐步审批或拒绝</li>
+          <li><strong>多 LLM Provider</strong>：支持 Anthropic、OpenAI、Google、本地模型</li>
+        </ul>
+      </div>
+
+      <div class="project-card">
+        <div class="project-header">
+          <div>
+            <div class="project-name">Aider</div>
+            <div style="color:var(--text2);font-size:12px;margin-top:2px">paul-gauthier/aider</div>
+          </div>
+          <span class="project-lang lang-py">Python</span>
+        </div>
+        <div class="stars">⭐⭐⭐⭐⭐ 成熟项目 · 独立发展</div>
+        <div class="project-desc" style="margin-top:8px">AI 结对编程工具，早于 Claude Code 泄漏独立发展，Git 深度集成是核心差异化</div>
+        <ul class="project-features">
+          <li><strong>Git 深度集成</strong>：自动生成有意义的 commit message，git blame 感知修改</li>
+          <li><strong>Repo Map</strong>：自动分析代码库结构，帮助 AI 理解大型项目架构</li>
+          <li><strong>多 LLM 支持</strong>：Claude、GPT-4、Gemini、本地模型，可配置不同任务使用不同模型</li>
+        </ul>
+      </div>
+
+      <div class="project-card">
+        <div class="project-header">
+          <div>
+            <div class="project-name">claw-code</div>
+            <div style="color:var(--text2);font-size:12px;margin-top:2px">架构镜像研究项目</div>
+          </div>
+          <span class="project-lang lang-py">Python</span>
+        </div>
+        <div class="stars">⭐⭐⭐⭐ 快速增长 · 研究导向</div>
+        <div class="project-desc" style="margin-top:8px">基于泄漏架构的学术研究级重实现，完整镜像 Claude Code 架构设计</div>
+        <ul class="project-features">
+          <li><strong>完整架构镜像</strong>：用 Python 重实现 QueryEngine、Tool Registry、Memory System</li>
+          <li><strong>可观测性接口</strong>：详细执行日志，便于研究 Agent 决策过程</li>
+          <li><strong>模块化解耦</strong>：将原版紧耦合模块拆分为独立可替换组件</li>
+        </ul>
+      </div>
+
+      <div class="project-card">
+        <div class="project-header">
+          <div>
+            <div class="project-name">Claurst</div>
+            <div style="color:var(--text2);font-size:12px;margin-top:2px">Rust 高性能重实现</div>
+          </div>
+          <span class="project-lang lang-rs">Rust</span>
+        </div>
+        <div class="stars">⭐⭐⭐ 高性能导向</div>
+        <div class="project-desc" style="margin-top:8px">追求完整行为覆盖的高性能版本，Rust 带来更低内存占用和更快启动速度</div>
+        <ul class="project-features">
+          <li><strong>多 Provider 支持</strong>：不绑定 Anthropic，支持任意 OpenAI API 兼容模型</li>
+          <li><strong>Token 高效模式</strong>：实验性 token 使用效率优化的特殊交互模式</li>
+          <li><strong>Rust 性能优势</strong>：更低内存占用、更快启动、更好并发性能</li>
+        </ul>
+      </div>
+
+      <div class="project-card">
+        <div class="project-header">
+          <div>
+            <div class="project-name">open-claude-code</div>
+            <div style="color:var(--text2);font-size:12px;margin-top:2px">ruvnet/open-claude-code</div>
+          </div>
+          <span class="project-lang lang-ts">TypeScript</span>
+        </div>
+        <div class="stars">⭐⭐⭐ Clean-room 重实现</div>
+        <div class="project-desc" style="margin-top:8px">基于反编译分析的 Clean-room CLI 重实现，法律上独立于泄漏代码</div>
+        <ul class="project-features">
+          <li><strong>Clean-room 方法论</strong>：基于反编译分析重建，不直接使用泄漏代码</li>
+          <li><strong>CLI 架构重建</strong>：完整重实现 Claude Code CLI 的核心架构模式</li>
+          <li><strong>法律合规</strong>：遵循逆向工程互操作性原则，规避版权风险</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="card-title">📊 开源项目改造维度对比</div>
+      <div class="table-wrap" style="margin-top:16px">
+        <table>
+          <thead>
+            <tr>
+              <th>项目</th>
+              <th>多模型支持</th>
+              <th>记忆系统</th>
+              <th>多Agent</th>
+              <th>IDE集成</th>
+              <th>隐私保护</th>
+              <th>性能优化</th>
+              <th>主要定位</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong style="color:#58a6ff">OpenCode</strong></td>
+              <td style="color:#3fb950">✅ 75+ Provider</td>
+              <td style="color:#e3b341">🔶 基础</td>
+              <td style="color:#3fb950">✅ 双Agent</td>
+              <td style="color:#e3b341">🔶 TUI+插件</td>
+              <td style="color:#3fb950">✅ 本地优先</td>
+              <td style="color:#e3b341">🔶 Go</td>
+              <td>生产替代</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#58a6ff">Cline</strong></td>
+              <td style="color:#3fb950">✅ 多Provider</td>
+              <td style="color:#e3b341">🔶 基础</td>
+              <td style="color:#e3b341">🔶 有限</td>
+              <td style="color:#3fb950">✅ VS Code深度</td>
+              <td style="color:#e3b341">🔶 中等</td>
+              <td style="color:#e3b341">🔶 TS</td>
+              <td>IDE集成</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#58a6ff">Aider</strong></td>
+              <td style="color:#3fb950">✅ 多Provider</td>
+              <td style="color:#e3b341">🔶 基础</td>
+              <td style="color:#f85149">❌</td>
+              <td style="color:#e3b341">🔶 终端</td>
+              <td style="color:#e3b341">🔶 中等</td>
+              <td style="color:#e3b341">🔶 Python</td>
+              <td>Git集成</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#58a6ff">claw-code</strong></td>
+              <td style="color:#e3b341">🔶 有限</td>
+              <td style="color:#3fb950">✅ 完整镜像</td>
+              <td style="color:#3fb950">✅ 完整镜像</td>
+              <td style="color:#f85149">❌</td>
+              <td style="color:#e3b341">🔶 中等</td>
+              <td style="color:#e3b341">🔶 Python</td>
+              <td>研究学习</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#58a6ff">Claurst</strong></td>
+              <td style="color:#3fb950">✅ 多Provider</td>
+              <td style="color:#e3b341">🔶 基础</td>
+              <td style="color:#e3b341">🔶 有限</td>
+              <td style="color:#f85149">❌</td>
+              <td style="color:#e3b341">🔶 中等</td>
+              <td style="color:#3fb950">✅ Rust高性能</td>
+              <td>高性能</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 设计启示 -->
+  <section class="section" id="insights">
+    <div class="section-title"><span class="icon">💡</span> 技术借鉴与设计启示</div>
+    <div class="section-subtitle">对企业级 Agent 产品设计的核心启示</div>
+
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="card">
+        <div class="card-title" style="color:#3fb950">✅ 值得借鉴的设计</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
+          <div style="padding:12px;background:rgba(63,185,80,0.05);border:1px solid rgba(63,185,80,0.2);border-radius:8px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">① 工具分层权限模型</div>
+            <div style="font-size:12px;color:var(--text2)">三层权限（自动/询问/阻断）是平衡效率与安全的最佳实践，避免 Agent 拥有无限权限</div>
+          </div>
+          <div style="padding:12px;background:rgba(63,185,80,0.05);border:1px solid rgba(63,185,80,0.2);border-radius:8px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">② 记忆系统分层设计</div>
+            <div style="font-size:12px;color:var(--text2)">短期+中期+长期的分层设计，Auto Dream 式定期整合防止记忆退化。差旅 Agent 可设计「行程记忆」「用户偏好」「企业政策」三层</div>
+          </div>
+          <div style="padding:12px;background:rgba(63,185,80,0.05);border:1px solid rgba(63,185,80,0.2);border-radius:8px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">③ Hooks 确定性控制层</div>
+            <div style="font-size:12px;color:var(--text2)">在 Agent 推理之外保留确定性控制层，无论 AI 怎么推理，某些安全检查必须执行</div>
+          </div>
+          <div style="padding:12px;background:rgba(63,185,80,0.05);border:1px solid rgba(63,185,80,0.2);border-radius:8px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">④ 上下文分级压缩</div>
+            <div style="font-size:12px;color:var(--text2)">不要等到 context 满了才处理，MicroCompact→AutoCompact→Full Compact 分级策略是长会话 Agent 必备设计</div>
+          </div>
+          <div style="padding:12px;background:rgba(63,185,80,0.05);border:1px solid rgba(63,185,80,0.2);border-radius:8px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">⑤ 双 Agent 分离模式</div>
+            <div style="font-size:12px;color:var(--text2)">将「分析规划」和「执行变更」分离到不同 Agent，降低误操作风险。差旅 Agent 可设计「需求理解 Agent」和「预订执行 Agent」</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#f85149">⚠️ 值得警惕的设计问题</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
+          <div style="padding:12px;background:rgba(248,81,73,0.05);border:1px solid rgba(248,81,73,0.2);border-radius:8px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">① 透明度问题</div>
+            <div style="font-size:12px;color:var(--text2)">Undercover Mode 隐藏 AI 身份的做法引发强烈批评。<strong style="color:#f85149">更好的做法</strong>：明确披露 AI 参与</div>
+          </div>
+          <div style="padding:12px;background:rgba(248,81,73,0.05);border:1px solid rgba(248,81,73,0.2);border-radius:8px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">② 供应商锁定</div>
+            <div style="font-size:12px;color:var(--text2)">强绑定 Anthropic API 导致 OpenCode 等项目被封锁。<strong style="color:#f85149">更好的做法</strong>：Provider 无关化设计</div>
+          </div>
+          <div style="padding:12px;background:rgba(248,81,73,0.05);border:1px solid rgba(248,81,73,0.2);border-radius:8px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">③ 权限过度</div>
+            <div style="font-size:12px;color:var(--text2)">BashTool 可执行任意命令风险极高。<strong style="color:#f85149">更好的做法</strong>：最小权限原则，严格沙箱</div>
+          </div>
+          <div style="padding:12px;background:rgba(248,81,73,0.05);border:1px solid rgba(248,81,73,0.2);border-radius:8px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">④ 记忆隐私</div>
+            <div style="font-size:12px;color:var(--text2)">记忆文件明文存储存在隐私风险。<strong style="color:#f85149">更好的做法</strong>：加密存储 + 访问控制</div>
+          </div>
+          <div style="padding:12px;background:rgba(248,81,73,0.05);border:1px solid rgba(248,81,73,0.2);border-radius:8px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">⑤ 发布安全</div>
+            <div style="font-size:12px;color:var(--text2)">Source map 意外打包导致源码泄漏。<strong style="color:#f85149">更好的做法</strong>：CI/CD 流程中强制检查打包内容</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-title">Claude Code 各模块复杂度评估</div>
+      <canvas id="complexityChart" style="max-height:280px"></canvas>
+    </div>
+  </section>
+
+</div>
+
+<!-- Footer -->
+<footer>
+  <div style="margin-bottom:8px">Claude Code 架构深度拆解与开源生态全景报告</div>
+  <div>报告日期：2026年4月7日 · 数据来源：泄漏源码分析、开源社区讨论、技术博客、GitHub 项目</div>
+</footer>
+
+<script>
+// 代码规模分布
+new Chart(document.getElementById('codeChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['QueryEngine.ts', '工具系统', '记忆系统', 'UI层', '权限系统', '多Agent编排', '其他'],
+    datasets: [{
+      data: [46000, 80000, 40000, 60000, 50000, 70000, 167000],
+      backgroundColor: ['#f85149','#58a6ff','#3fb950','#d2a8ff','#ffa657','#e3b341','#30363d'],
+      borderColor: '#161b22',
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'right', labels: { color: '#8b949e', font: { size: 11 }, padding: 12 } }
+    }
+  }
+});
+
+// 工具激活模式
+new Chart(document.getElementById('toolChart'), {
+  type: 'bar',
+  data: {
+    labels: ['始终激活', '条件激活', '特性门控'],
+    datasets: [{
+      label: '工具数量（估算）',
+      data: [18, 12, 30],
+      backgroundColor: ['rgba(63,185,80,0.7)','rgba(227,179,65,0.7)','rgba(88,166,255,0.7)'],
+      borderColor: ['#3fb950','#e3b341','#58a6ff'],
+      borderWidth: 1,
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+      y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, beginAtZero: true }
+    }
+  }
+});
+
+// 雷达图
+new Chart(document.getElementById('radarChart'), {
+  type: 'radar',
+  data: {
+    labels: ['多模型支持', '记忆系统', '多Agent编排', 'IDE集成', '隐私保护', '性能优化', '生产就绪'],
+    datasets: [
+      {
+        label: 'OpenCode',
+        data: [95, 50, 70, 55, 90, 65, 85],
+        borderColor: '#58a6ff',
+        backgroundColor: 'rgba(88,166,255,0.1)',
+        pointBackgroundColor: '#58a6ff'
+      },
+      {
+        label: 'Cline',
+        data: [80, 50, 55, 95, 60, 55, 80],
+        borderColor: '#3fb950',
+        backgroundColor: 'rgba(63,185,80,0.1)',
+        pointBackgroundColor: '#3fb950'
+      },
+      {
+        label: 'Aider',
+        data: [85, 45, 30, 60, 65, 55, 85],
+        borderColor: '#ffa657',
+        backgroundColor: 'rgba(255,166,87,0.1)',
+        pointBackgroundColor: '#ffa657'
+      },
+      {
+        label: 'claw-code',
+        data: [50, 90, 85, 20, 55, 45, 40],
+        borderColor: '#d2a8ff',
+        backgroundColor: 'rgba(210,168,255,0.1)',
+        pointBackgroundColor: '#d2a8ff'
+      },
+      {
+        label: 'Claurst',
+        data: [75, 45, 50, 20, 60, 95, 55],
+        borderColor: '#f85149',
+        backgroundColor: 'rgba(248,81,73,0.1)',
+        pointBackgroundColor: '#f85149'
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      r: {
+        min: 0, max: 100,
+        ticks: { color: '#8b949e', stepSize: 20, backdropColor: 'transparent' },
+        grid: { color: '#30363d' },
+        pointLabels: { color: '#e6edf3', font: { size: 12 } }
+      }
+    },
+    plugins: {
+      legend: { labels: { color: '#8b949e', font: { size: 12 }, padding: 16 } }
+    }
+  }
+});
+
+// 复杂度评估
+new Chart(document.getElementById('complexityChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Query Engine', '工具系统', '记忆系统', '权限安全', '多Agent编排', 'UI层', 'Hooks系统'],
+    datasets: [{
+      label: '实现复杂度',
+      data: [95, 75, 80, 70, 85, 55, 60],
+      backgroundColor: ['#f85149','#58a6ff','#3fb950','#ffa657','#d2a8ff','#e3b341','#79c0ff'],
+      borderRadius: 6
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, max: 100 },
+      y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }
+    }
+  }
+});
+</script>
+<script>
+// Dropdown
+const dropBtn = document.getElementById('detailDropBtn');
+const dropPanel = document.getElementById('detailDropPanel');
+dropBtn.addEventListener('click', () => {
+  dropPanel.classList.toggle('open');
+  dropBtn.classList.toggle('open');
+});
+document.addEventListener('click', e => {
+  if (!dropBtn.contains(e.target) && !dropPanel.contains(e.target)) {
+    dropPanel.classList.remove('open');
+    dropBtn.classList.remove('open');
+  }
+});
+</script>
+</body>
+</html>

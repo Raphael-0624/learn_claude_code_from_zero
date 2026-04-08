@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory 记忆系统 | Claude Code 深度解析</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+  --border: #30363d; --text: #c9d1d9; --text2: #8b949e;
+  --accent: #58a6ff; --accent2: #79c0ff;
+  --pink: #ff7b72; --green: #3fb950; --yellow: #d29922;
+  --purple: #bc8cff; --orange: #f0883e; --teal: #39d353;
+  --sidebar-w: 260px;
+  --topnav-h: 60px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; min-height: 100vh; }
+.topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    height: var(--topnav-h);
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+}
+.topnav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 700; color: #fff; text-decoration: none;
+    flex-shrink: 0; border-radius: 6px; transition: background 0.15s;
+    padding: 4px 8px; margin: -4px -8px;
+}
+.topnav-logo:hover { background: var(--bg3); text-decoration: none; }
+.topnav-logo .logo-icon { font-size: 20px; }
+.topnav-logo .logo-badge {
+    font-size: 10px; background: var(--accent); color: #000;
+    padding: 1px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;
+}
+.topnav-links { display: flex; align-items: center; gap: 4px; }
+.topnav-links a {
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+}
+.topnav-links a:hover { color: var(--text); background: var(--bg3); }
+.topnav-links a.active { color: var(--accent); }
+.topnav-right { display: flex; align-items: center; gap: 12px; }
+.version-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--green); font-weight: 600;
+}
+.dropdown { position: relative; }
+.dropdown-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+    cursor: pointer; border: none; background: none;
+    font-family: inherit;
+}
+.dropdown-btn:hover, .dropdown-btn.open { color: var(--text); background: var(--bg3); }
+.dropdown-btn .arrow { font-size: 10px; transition: transform 0.2s; }
+.dropdown-btn.open .arrow { transform: rotate(180deg); }
+.dropdown-panel {
+    display: none;
+    position: absolute; top: calc(100% + 8px); right: 0;
+    min-width: 380px;
+    background: rgba(13,17,23,0.97);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    z-index: 2000;
+}
+.dropdown-panel.open { display: block; }
+.dropdown-group { margin-bottom: 12px; }
+.dropdown-group:last-child { margin-bottom: 0; }
+.dropdown-group-title {
+    font-size: 10px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0 8px 6px;
+}
+.dropdown-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--text2);
+    text-decoration: none; transition: all 0.15s;
+}
+.dropdown-item:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
+.dropdown-item.active { color: var(--accent); background: rgba(88,166,255,0.08); }
+.dropdown-item .di-icon { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+.dropdown-item .di-text { flex: 1; }
+.dropdown-sep { height: 1px; background: var(--border); margin: 8px 0; }
+.layout { display: flex; padding-top: var(--topnav-h); min-height: 100vh; }
+.sidebar { width: var(--sidebar-w); height: calc(100vh - var(--topnav-h)); background: var(--bg2); border-right: 1px solid var(--border); position: fixed; top: var(--topnav-h); left: 0; overflow-y: auto; z-index: 100; }
+.sidebar-logo { padding: 20px; border-bottom: 1px solid var(--border); }
+.sidebar-logo .logo-title { font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.sidebar-logo .logo-sub { font-size: 12px; color: var(--green); }
+.sidebar-nav { padding: 12px 0; }
+.nav-section { padding: 8px 16px 4px; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; }
+.nav-item { display: block; padding: 7px 16px; font-size: 13px; color: var(--text2); text-decoration: none; border-left: 3px solid transparent; transition: all 0.2s; }
+.nav-item:hover, .nav-item.active { color: var(--accent); background: rgba(88,166,255,0.08); border-left-color: var(--accent); }
+.main { margin-left: var(--sidebar-w); flex: 1; padding-top: var(--topnav-h); }
+.hero { background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1f0d 100%); border-bottom: 1px solid var(--border); padding: 60px 48px 48px; position: relative; overflow: hidden; }
+.hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 500px; height: 500px; border-radius: 50%; background: radial-gradient(circle, rgba(63,185,80,0.06) 0%, transparent 70%); }
+.hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--green); margin-bottom: 16px; }
+.hero h1 { font-size: 42px; font-weight: 800; color: #fff; margin-bottom: 12px; line-height: 1.2; }
+.hero h1 span { color: var(--green); }
+.hero p { font-size: 17px; color: var(--text2); max-width: 600px; line-height: 1.7; }
+.hero-meta { display: flex; gap: 24px; margin-top: 24px; flex-wrap: wrap; }
+.hero-meta-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); }
+.hero-meta-item .dot { width: 8px; height: 8px; border-radius: 50%; }
+.content { padding: 48px; max-width: 1100px; }
+.section { margin-bottom: 56px; }
+.section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.section-num { width: 32px; height: 32px; border-radius: 8px; background: rgba(63,185,80,0.15); border: 1px solid rgba(63,185,80,0.3); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--green); flex-shrink: 0; }
+.section h2 { font-size: 24px; font-weight: 700; color: var(--accent); }
+.section h3 { font-size: 18px; font-weight: 600; color: var(--accent2); margin: 24px 0 12px; }
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.card-icon { font-size: 28px; margin-bottom: 12px; }
+.card h4 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.card p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+pre { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 20px; overflow-x: auto; margin: 16px 0; }
+code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.7; color: var(--text); }
+.code-comment { color: var(--text2); }
+.code-keyword { color: var(--pink); }
+.code-string { color: var(--green); }
+.code-number { color: var(--purple); }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+th { background: var(--bg3); color: var(--accent2); font-size: 13px; font-weight: 600; padding: 12px 16px; text-align: left; border-bottom: 2px solid var(--border); }
+td { padding: 12px 16px; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); }
+tr:hover td { background: rgba(88,166,255,0.04); }
+.chart-container { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; }
+.chart-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+.chart-wrap { position: relative; height: 280px; }
+.tip { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.25); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; color: var(--text2); }
+.tip strong { color: var(--accent); }
+.warn { background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.25); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; color: var(--text2); }
+.warn strong { color: var(--yellow); }
+
+/* 记忆层级 */
+.memory-layers { display: flex; flex-direction: column; gap: 0; margin: 16px 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.mem-layer { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 16px; }
+.mem-layer:last-child { border-bottom: none; }
+.mem-layer-num { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; flex-shrink: 0; }
+.ml4 { background: rgba(88,166,255,0.15); color: var(--accent); }
+.ml3 { background: rgba(63,185,80,0.15); color: var(--green); }
+.ml2 { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.ml1 { background: rgba(188,140,255,0.15); color: var(--purple); }
+.mem-layer-content h4 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.mem-layer-content p { font-size: 13px; color: var(--text2); line-height: 1.5; }
+.mem-layer-content .tags { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+
+/* Auto Dream */
+.dream-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.dream-box { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.dream-box h4 { font-size: 14px; font-weight: 600; color: var(--text2); margin-bottom: 12px; text-align: center; }
+.dream-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); }
+.dream-item:last-child { border-bottom: none; }
+.dream-item .arrow { color: var(--green); font-size: 16px; }
+
+/* Dream 操作 */
+.dream-ops { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
+.dream-op { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+.dream-op .op-icon { font-size: 28px; margin-bottom: 8px; }
+.dream-op h4 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.dream-op p { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
+@media (max-width: 1024px) {
+  .topnav-links { display: none; }
+  .main { padding-top: var(--topnav-h); }
+  .content { padding: 24px 24px 48px; }
+  .dream-compare, .dream-ops { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; }
+  .hero { padding: 32px 24px; }
+  .content { padding: 20px 16px 48px; }
+  .dropdown-panel { right: -16px; min-width: calc(100vw - 32px); }
+}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">
+    <span class="logo-icon">⚡</span>
+    <span>Claude Code</span>
+    <span class="logo-badge">深度解析</span>
+  </a>
+  <div class="topnav-links">
+    <a href="#">技术模块</a>
+    <a href="#">使用指南</a>
+    <div class="dropdown">
+      <button class="dropdown-btn" id="detailDropBtn">
+        详细拆解 <span class="arrow">▾</span>
+      </button>
+      <div class="dropdown-panel" id="detailDropPanel">
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">🔧 核心引擎</div>
+          <a href="claude_code_harness.html" class="dropdown-item"><span class="di-icon">🔧</span><span class="di-text">Harness 执行引擎</span></a>
+          <a href="claude_code_context.html" class="dropdown-item"><span class="di-icon">🧠</span><span class="di-text">Context 上下文系统</span></a>
+          <a href="claude_code_memory.html" class="dropdown-item active"><span class="di-icon">💾</span><span class="di-text">Memory 记忆系统</span></a>
+          <a href="claude_code_tools.html" class="dropdown-item"><span class="di-icon">🛠️</span><span class="di-text">Tool System 工具系统</span></a>
+          <a href="claude_code_agent_loop.html" class="dropdown-item"><span class="di-icon">🔄</span><span class="di-text">Agent Loop 执行循环</span></a>
+          <a href="claude_code_multi_agent.html" class="dropdown-item"><span class="di-icon">🤝</span><span class="di-text">Multi-Agent 多智能体</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📖 使用指南</div>
+          <a href="claude_code_user_manual.html" class="dropdown-item"><span class="di-icon">📖</span><span class="di-text">用户完整手册</span></a>
+          <a href="claude_code_prompt_guide.html" class="dropdown-item"><span class="di-icon">✍️</span><span class="di-text">Prompt 工程指南</span></a>
+          <a href="claude_code_cases.html" class="dropdown-item"><span class="di-icon">🚀</span><span class="di-text">实战案例库</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📊 深度报告</div>
+          <a href="claude_code_comparison.html" class="dropdown-item"><span class="di-icon">⚖️</span><span class="di-text">工具对比分析</span></a>
+          <a href="claude_code_report.html" class="dropdown-item"><span class="di-icon">🏗️</span><span class="di-text">架构深度拆解报告</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="topnav-right">
+    <span class="version-badge">✦ 2026 Q2</span>
+  </div>
+</nav>
+
+<div class="layout">
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <a href="index.html">
+      <div class="logo-title">💾 Claude Code</div>
+      <div class="logo-sub">技术深度解析系列</div>
+    </a>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section">当前模块</div>
+    <a href="#overview" class="nav-item active">🏗️ 记忆系统架构</a>
+    <a href="#claude-md" class="nav-item">📋 CLAUDE.md 指令</a>
+    <a href="#memory-md" class="nav-item">🗂️ MEMORY.md 索引</a>
+    <a href="#auto-dream" class="nav-item">🌙 Auto Dream 机制</a>
+    <a href="#session" class="nav-item">📝 会话摘要</a>
+    <a href="#rag" class="nav-item">🔍 RAG 历史检索</a>
+    <a href="#best-practices" class="nav-item">✅ 最佳实践</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="hero">
+    <div class="hero-badge">💾 技术深度解析 · 第三篇</div>
+    <h1>Memory <span>记忆系统</span></h1>
+    <p>Claude Code 最独特的能力之一——让 Claude 跨会话学习、积累知识、持续进化。就像真正的团队成员，而不是每次从零开始的工具。</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><div class="dot" style="background:var(--green)"></div>四层记忆架构</div>
+      <div class="hero-meta-item"><div class="dot" style="background:var(--yellow)"></div>Auto Dream 整合</div>
+      <div class="hero-meta-item"><div class="dot" style="background:var(--purple)"></div>RAG 历史检索</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- 1. 架构 -->
+    <div class="section" id="overview">
+      <div class="section-header">
+        <div class="section-num">1</div>
+        <h2>四层记忆架构</h2>
+      </div>
+      <p style="color:var(--text2);line-height:1.8;margin-bottom:20px">Claude Code 实现了从短期到长期、从会话内到跨会话的四层记忆架构。</p>
+
+      <div class="memory-layers">
+        <div class="mem-layer">
+          <div class="mem-layer-num ml4">4</div>
+          <div class="mem-layer-content">
+            <h4>CLAUDE.md — 静态项目指令</h4>
+            <p>永久存在，手动维护，每次会话自动加载。包含技术规范、架构约束、代码规范等核心指令。</p>
+            <div class="tags">
+              <span class="tag">永久存在</span>
+              <span class="tag">手动维护</span>
+              <span class="tag">自动加载</span>
+              <span class="tag">最高优先级</span>
+            </div>
+          </div>
+        </div>
+        <div class="mem-layer">
+          <div class="mem-layer-num ml3">3</div>
+          <div class="mem-layer-content">
+            <h4>MEMORY.md — 动态记忆索引</h4>
+            <p>AI 自动更新，前 200 行/25KB 自动加载。作为索引指向详细的 topic files（如 debugging.md、api-conventions.md）。</p>
+            <div class="tags">
+              <span class="tag">AI 自动更新</span>
+              <span class="tag">前 200 行加载</span>
+              <span class="tag">索引结构</span>
+            </div>
+          </div>
+        </div>
+        <div class="mem-layer">
+          <div class="mem-layer-num ml2">2</div>
+          <div class="mem-layer-content">
+            <h4>Session Memory — 会话摘要</h4>
+            <p>会话结束时自动生成，保存关键决策、完成的任务、遇到的问题，供下次会话参考。</p>
+            <div class="tags">
+              <span class="tag">会话结束生成</span>
+              <span class="tag">关键决策</span>
+              <span class="tag">跨会话参考</span>
+            </div>
+          </div>
+        </div>
+        <div class="mem-layer">
+          <div class="mem-layer-num ml1">1</div>
+          <div class="mem-layer-content">
+            <h4>Chat Memory — 24小时合成</h4>
+            <p>Auto Dream 机制处理，跨会话知识整合，是长期知识库的基础。触发条件：24小时后 + 5个会话。</p>
+            <div class="tags">
+              <span class="tag">Auto Dream 处理</span>
+              <span class="tag">24小时合成</span>
+              <span class="tag">长期知识库</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">记忆层级的持久性与自动化程度</div>
+        <div class="chart-wrap">
+          <canvas id="memoryChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. CLAUDE.md -->
+    <div class="section" id="claude-md">
+      <div class="section-header">
+        <div class="section-num">2</div>
+        <h2>CLAUDE.md：静态项目指令</h2>
+      </div>
+
+      <h3>文件层级与加载顺序</h3>
+      <pre><code>~/
+├── .claude/
+│   └── CLAUDE.md          <span class="code-comment"># 全局指令（所有项目共享）</span>
+│
+└── my-project/
+    ├── CLAUDE.md           <span class="code-comment"># 项目根指令（最重要）</span>
+    ├── src/
+    │   └── CLAUDE.md       <span class="code-comment"># 模块级指令（可选）</span>
+    └── tests/
+        └── CLAUDE.md       <span class="code-comment"># 测试目录指令（可选）</span>
+
+<span class="code-comment"># 加载顺序：全局 → 项目根 → 当前目录</span>
+<span class="code-comment"># 优先级：当前目录 > 项目根 > 全局</span></code></pre>
+
+      <h3>最佳结构模板</h3>
+      <pre><code><span class="code-comment"># 项目名称 - Claude 工作指南</span>
+
+<span class="code-comment">## 🚨 绝对约束（必须遵守）</span>
+- 数据库：PostgreSQL 14+，禁止使用其他数据库
+- 语言：TypeScript 5.x，严格模式，禁止 any 类型
+- 框架：Next.js 14 App Router
+
+<span class="code-comment">## 🏗️ 架构概览</span>
+- 前端：Next.js + Tailwind CSS
+- 后端：Node.js + Prisma ORM
+
+<span class="code-comment">## 📋 代码规范</span>
+- 使用 ESLint + Prettier
+- 组件命名：PascalCase
+- 函数命名：camelCase
+
+<span class="code-comment">## 🔧 常用命令</span>
+- 开发：`npm run dev`
+- 测试：`npm test`</code></pre>
+    </div>
+
+    <!-- 3. MEMORY.md -->
+    <div class="section" id="memory-md">
+      <div class="section-header">
+        <div class="section-num">3</div>
+        <h2>MEMORY.md：动态记忆索引</h2>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">📊</div>
+          <h4>自动加载规则</h4>
+          <p>前 200 行或 25KB 自动加载到每次会话的上下文中，超出部分按需读取</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🗂️</div>
+          <h4>索引结构</h4>
+          <p>MEMORY.md 作为主索引，指向 ~/.claude/memories/ 目录下的详细 topic files</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🤖</div>
+          <h4>AI 自动维护</h4>
+          <p>Claude 会自动更新 MEMORY.md，记录重要发现、用户偏好、项目状态</p>
+        </div>
+      </div>
+
+      <pre><code><span class="code-comment"># Claude 记忆索引</span>
+<span class="code-comment"># 最后更新：2026-04-07 by Auto Dream</span>
+
+<span class="code-comment">## 活跃项目</span>
+- **my-saas-app**：SaaS 应用，PostgreSQL + Next.js
+- **data-pipeline**：数据管道，Python + Airflow
+
+<span class="code-comment">## 用户偏好</span>
+- 代码风格：函数式编程优先，避免类
+- 注释风格：只注释"为什么"，不注释"是什么"
+- 测试框架：Vitest（不是 Jest）
+
+<span class="code-comment">## 最近会话摘要</span>
+- 2026-04-06：完成认证模块重构，JWT + Refresh Token
+- 2026-04-05：优化数据库查询，性能提升 3x</code></pre>
+    </div>
+
+    <!-- 4. Auto Dream -->
+    <div class="section" id="auto-dream">
+      <div class="section-header">
+        <div class="section-num">4</div>
+        <h2>Auto Dream：后台记忆整合机制</h2>
+      </div>
+      <p style="color:var(--text2);line-height:1.8;margin-bottom:20px">Auto Dream 是 Claude Code 最神秘的特性——一个在后台运行的记忆整合机制，类比人脑在睡眠时处理和整合记忆。</p>
+
+      <div class="dream-compare">
+        <div class="dream-box">
+          <h4>🧠 人脑睡眠记忆处理</h4>
+          <div class="dream-item"><span class="arrow">→</span>白天积累经验</div>
+          <div class="dream-item"><span class="arrow">→</span>睡眠时整合记忆</div>
+          <div class="dream-item"><span class="arrow">→</span>剪枝无用记忆</div>
+          <div class="dream-item"><span class="arrow">→</span>强化重要记忆</div>
+          <div class="dream-item"><span class="arrow">→</span>重构记忆结构</div>
+        </div>
+        <div class="dream-box">
+          <h4>🤖 Claude Auto Dream</h4>
+          <div class="dream-item"><span class="arrow">→</span>会话积累记忆</div>
+          <div class="dream-item"><span class="arrow">→</span>后台触发整合</div>
+          <div class="dream-item"><span class="arrow">→</span>删除过时条目</div>
+          <div class="dream-item"><span class="arrow">→</span>合并相关信息</div>
+          <div class="dream-item"><span class="arrow">→</span>优化索引结构</div>
+        </div>
+      </div>
+
+      <h3>触发条件</h3>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">⏰</div>
+          <h4>时间条件</h4>
+          <p>距上次整合超过 24 小时自动触发</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📊</div>
+          <h4>会话数量</h4>
+          <p>累计 5 个会话后触发整合</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📦</div>
+          <h4>文件大小</h4>
+          <p>记忆文件超过阈值时触发</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">👆</div>
+          <h4>手动触发</h4>
+          <p>用户执行 <code>claude /dream</code> 命令</p>
+        </div>
+      </div>
+
+      <h3>三个核心操作</h3>
+      <div class="dream-ops">
+        <div class="dream-op">
+          <div class="op-icon">✂️</div>
+          <h4>剪枝（Pruning）</h4>
+          <p>删除过时信息、已解决的 bug、废弃的 API 记录，移除重复条目</p>
+        </div>
+        <div class="dream-op">
+          <div class="op-icon">🔗</div>
+          <h4>合并（Merging）</h4>
+          <p>将相关信息整合到同一主题，消除矛盾记录，更新过时信息</p>
+        </div>
+        <div class="dream-op">
+          <div class="op-icon">🏗️</div>
+          <h4>重构（Restructuring）</h4>
+          <p>优化 MEMORY.md 索引结构，将频繁访问的信息移到前面</p>
+        </div>
+      </div>
+
+      <div class="warn">
+        <strong>⚠️ 重要限制：</strong>Auto Dream 只能修改 <code>~/.claude/memories/</code> 目录下的记忆文件，<strong>不能修改任何项目源代码</strong>，不能执行命令，不能访问网络。
+      </div>
+
+      <pre><code><span class="code-comment"># Auto Dream 管理命令</span>
+claude /dream              <span class="code-comment"># 手动触发记忆整合</span>
+claude /dream --log        <span class="code-comment"># 查看整合日志</span>
+claude /dream --dry-run    <span class="code-comment"># 预览（不实际执行）</span>
+
+<span class="code-comment"># 禁用 Auto Dream（~/.claude/settings.json）</span>
+{
+  <span class="code-string">"autoDream"</span>: { <span class="code-string">"enabled"</span>: <span class="code-keyword">false</span> }
+}</code></pre>
+
+      <div class="chart-container">
+        <div class="chart-title">Auto Dream 触发频率与记忆质量关系</div>
+        <div class="chart-wrap">
+          <canvas id="dreamChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 会话摘要 -->
+    <div class="section" id="session">
+      <div class="section-header">
+        <div class="section-num">5</div>
+        <h2>Session Memory：会话摘要</h2>
+      </div>
+
+      <pre><code><span class="code-comment">## 会话摘要 - 2026-04-07 14:30</span>
+
+<span class="code-string">**项目**</span>：my-saas-app
+<span class="code-string">**时长**</span>：2小时15分钟
+<span class="code-string">**工具调用**</span>：47次
+
+<span class="code-comment">### 完成的任务</span>
+- ✅ 重构用户认证模块（JWT + Refresh Token）
+- ✅ 修复了 3 个数据库查询 N+1 问题
+- ✅ 添加了 API 速率限制（100 req/min）
+
+<span class="code-comment">### 重要决策</span>
+- 选择 Redis 作为 Session 存储（而非数据库）
+- API 版本策略：URL 路径版本（/api/v1/）
+
+<span class="code-comment">### 待处理</span>
+- ⏳ 邮件通知系统（下次会话继续）
+- ⏳ 管理员权限系统</code></pre>
+    </div>
+
+    <!-- 6. RAG -->
+    <div class="section" id="rag">
+      <div class="section-header">
+        <div class="section-num">6</div>
+        <h2>RAG 支持：搜索历史对话</h2>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">🔍</div>
+          <h4>语义搜索</h4>
+          <p>付费用户可以搜索历史对话，找到之前讨论过的解决方案和决策</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📅</div>
+          <h4>时间范围过滤</h4>
+          <p>可以按时间范围搜索，如"上周关于 API 设计的所有讨论"</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🏷️</div>
+          <h4>项目过滤</h4>
+          <p>可以按项目过滤，只搜索特定项目的历史记录</p>
+        </div>
+      </div>
+
+      <pre><code><span class="code-comment"># RAG 搜索示例</span>
+claude <span class="code-string">"搜索我们之前讨论过的数据库优化方案"</span>
+claude <span class="code-string">"找出上周关于 API 设计的所有讨论"</span>
+claude <span class="code-string">"显示 my-saas-app 项目的所有历史决策"</span></code></pre>
+    </div>
+
+    <!-- 7. 最佳实践 -->
+    <div class="section" id="best-practices">
+      <div class="section-header">
+        <div class="section-num">7</div>
+        <h2>最佳实践</h2>
+      </div>
+
+      <h3>记忆分层策略</h3>
+      <table>
+        <thead>
+          <tr><th>记忆类型</th><th>存储位置</th><th>适合内容</th><th>维护方式</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>永久记忆</td><td>CLAUDE.md</td><td>技术栈、代码规范、架构决策</td><td>手动维护</td></tr>
+          <tr><td>动态记忆</td><td>MEMORY.md</td><td>最近发现、临时约定、进行中任务</td><td>AI 自动更新</td></tr>
+          <tr><td>会话记忆</td><td>Session Memory</td><td>本次会话进展、临时上下文</td><td>自动生成</td></tr>
+          <tr><td>长期知识</td><td>memories/*.md</td><td>深度技术知识、历史决策</td><td>Auto Dream 整合</td></tr>
+        </tbody>
+      </table>
+
+      <div class="tip">
+        <strong>💡 团队协作：</strong>将 CLAUDE.md 提交到 git 仓库，让团队共享项目指令。将个人记忆文件（MEMORY.md）加入 .gitignore，保持个人化。
+      </div>
+    </div>
+
+  </div>
+</main>
+</div><!-- /.layout -->
+
+<script>
+// 记忆层级雷达图
+const memCtx = document.getElementById('memoryChart').getContext('2d');
+new Chart(memCtx, {
+  type: 'radar',
+  data: {
+    labels: ['持久性', '自动化程度', '加载速度', '信息密度', '可编辑性'],
+    datasets: [
+      {
+        label: 'CLAUDE.md',
+        data: [100, 20, 100, 80, 100],
+        borderColor: '#58a6ff',
+        backgroundColor: 'rgba(88,166,255,0.15)',
+        borderWidth: 2,
+        pointBackgroundColor: '#58a6ff',
+      },
+      {
+        label: 'MEMORY.md',
+        data: [80, 80, 90, 70, 70],
+        borderColor: '#3fb950',
+        backgroundColor: 'rgba(63,185,80,0.15)',
+        borderWidth: 2,
+        pointBackgroundColor: '#3fb950',
+      },
+      {
+        label: 'Session Memory',
+        data: [40, 100, 60, 60, 30],
+        borderColor: '#d29922',
+        backgroundColor: 'rgba(210,153,34,0.15)',
+        borderWidth: 2,
+        pointBackgroundColor: '#d29922',
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#c9d1d9', font: { size: 13 } } } },
+    scales: {
+      r: {
+        ticks: { color: '#8b949e', backdropColor: 'transparent' },
+        grid: { color: 'rgba(48,54,61,0.8)' },
+        pointLabels: { color: '#c9d1d9', font: { size: 12 } },
+        min: 0, max: 100,
+      }
+    }
+  }
+});
+
+// Auto Dream 效果图
+const dreamCtx = document.getElementById('dreamChart').getContext('2d');
+new Chart(dreamCtx, {
+  type: 'line',
+  data: {
+    labels: ['第1天', '第3天', '第7天', '第14天', '第30天', '第60天'],
+    datasets: [
+      {
+        label: '有 Auto Dream（记忆质量）',
+        data: [60, 72, 80, 85, 90, 95],
+        borderColor: '#3fb950',
+        backgroundColor: 'rgba(63,185,80,0.1)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#3fb950',
+      },
+      {
+        label: '无 Auto Dream（记忆质量）',
+        data: [60, 58, 52, 45, 35, 25],
+        borderColor: '#ff7b72',
+        backgroundColor: 'rgba(255,123,114,0.1)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#ff7b72',
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#c9d1d9', font: { size: 13 } } } },
+    scales: {
+      x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' } },
+      y: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' }, min: 0, max: 100,
+           title: { display: true, text: '记忆质量评分', color: '#8b949e' } }
+    }
+  }
+});
+</script>
+<script>
+// Dropdown
+const dropBtn = document.getElementById('detailDropBtn');
+const dropPanel = document.getElementById('detailDropPanel');
+dropBtn.addEventListener('click', () => {
+  dropPanel.classList.toggle('open');
+  dropBtn.classList.toggle('open');
+});
+document.addEventListener('click', e => {
+  if (!dropBtn.contains(e.target) && !dropPanel.contains(e.target)) {
+    dropPanel.classList.remove('open');
+    dropBtn.classList.remove('open');
+  }
+});
+
+// Sidebar active link on scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      const id = entry.target.id;
+      const active = document.querySelector(`.nav-item[href="#${id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -60% 0px' });
+document.querySelectorAll('.section[id]').forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

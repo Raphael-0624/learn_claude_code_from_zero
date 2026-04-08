@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tool System 工具系统 | Claude Code 深度解析</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+  --border: #30363d; --text: #c9d1d9; --text2: #8b949e;
+  --accent: #58a6ff; --accent2: #79c0ff;
+  --pink: #ff7b72; --green: #3fb950; --yellow: #d29922;
+  --purple: #bc8cff; --orange: #f0883e;
+  --sidebar-w: 260px;
+  --topnav-h: 60px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; min-height: 100vh; }
+.topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    height: var(--topnav-h);
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+}
+.topnav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 700; color: #fff; text-decoration: none;
+    flex-shrink: 0; border-radius: 6px; transition: background 0.15s;
+    padding: 4px 8px; margin: -4px -8px;
+}
+.topnav-logo:hover { background: var(--bg3); text-decoration: none; }
+.topnav-logo .logo-icon { font-size: 20px; }
+.topnav-logo .logo-badge {
+    font-size: 10px; background: var(--accent); color: #000;
+    padding: 1px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;
+}
+.topnav-links { display: flex; align-items: center; gap: 4px; }
+.topnav-links a {
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+}
+.topnav-links a:hover { color: var(--text); background: var(--bg3); }
+.topnav-links a.active { color: var(--accent); }
+.topnav-right { display: flex; align-items: center; gap: 12px; }
+.version-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--green); font-weight: 600;
+}
+.dropdown { position: relative; }
+.dropdown-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+    cursor: pointer; border: none; background: none;
+    font-family: inherit;
+}
+.dropdown-btn:hover, .dropdown-btn.open { color: var(--text); background: var(--bg3); }
+.dropdown-btn .arrow { font-size: 10px; transition: transform 0.2s; }
+.dropdown-btn.open .arrow { transform: rotate(180deg); }
+.dropdown-panel {
+    display: none;
+    position: absolute; top: calc(100% + 8px); right: 0;
+    min-width: 380px;
+    background: rgba(13,17,23,0.97);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    z-index: 2000;
+}
+.dropdown-panel.open { display: block; }
+.dropdown-group { margin-bottom: 12px; }
+.dropdown-group:last-child { margin-bottom: 0; }
+.dropdown-group-title {
+    font-size: 10px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0 8px 6px;
+}
+.dropdown-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--text2);
+    text-decoration: none; transition: all 0.15s;
+}
+.dropdown-item:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
+.dropdown-item.active { color: var(--accent); background: rgba(88,166,255,0.08); }
+.dropdown-item .di-icon { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+.dropdown-item .di-text { flex: 1; }
+.dropdown-sep { height: 1px; background: var(--border); margin: 8px 0; }
+.layout { display: flex; padding-top: var(--topnav-h); min-height: 100vh; }
+.sidebar { width: var(--sidebar-w); height: calc(100vh - var(--topnav-h)); background: var(--bg2); border-right: 1px solid var(--border); position: fixed; top: var(--topnav-h); left: 0; overflow-y: auto; z-index: 100; }
+.sidebar-logo { padding: 20px; border-bottom: 1px solid var(--border); }
+.sidebar-logo .logo-title { font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.sidebar-logo .logo-sub { font-size: 12px; color: var(--orange); }
+.sidebar-nav { padding: 12px 0; }
+.nav-section { padding: 8px 16px 4px; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; }
+.nav-item { display: block; padding: 7px 16px; font-size: 13px; color: var(--text2); text-decoration: none; border-left: 3px solid transparent; transition: all 0.2s; }
+.nav-item:hover, .nav-item.active { color: var(--accent); background: rgba(88,166,255,0.08); border-left-color: var(--accent); }
+.main { margin-left: var(--sidebar-w); flex: 1; padding-top: var(--topnav-h); }
+.hero { background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1f1a0d 100%); border-bottom: 1px solid var(--border); padding: 60px 48px 48px; position: relative; overflow: hidden; }
+.hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 500px; height: 500px; border-radius: 50%; background: radial-gradient(circle, rgba(240,136,62,0.06) 0%, transparent 70%); }
+.hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(240,136,62,0.1); border: 1px solid rgba(240,136,62,0.3); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--orange); margin-bottom: 16px; }
+.hero h1 { font-size: 42px; font-weight: 800; color: #fff; margin-bottom: 12px; line-height: 1.2; }
+.hero h1 span { color: var(--orange); }
+.hero p { font-size: 17px; color: var(--text2); max-width: 600px; line-height: 1.7; }
+.hero-meta { display: flex; gap: 24px; margin-top: 24px; flex-wrap: wrap; }
+.hero-meta-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); }
+.hero-meta-item .dot { width: 8px; height: 8px; border-radius: 50%; }
+.content { padding: 48px; max-width: 1100px; }
+.section { margin-bottom: 56px; }
+.section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.section-num { width: 32px; height: 32px; border-radius: 8px; background: rgba(240,136,62,0.15); border: 1px solid rgba(240,136,62,0.3); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--orange); flex-shrink: 0; }
+.section h2 { font-size: 24px; font-weight: 700; color: var(--accent); }
+.section h3 { font-size: 18px; font-weight: 600; color: var(--accent2); margin: 24px 0 12px; }
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.card-icon { font-size: 28px; margin-bottom: 12px; }
+.card h4 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.card p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+pre { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 20px; overflow-x: auto; margin: 16px 0; }
+code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.7; color: var(--text); }
+.code-comment { color: var(--text2); }
+.code-keyword { color: var(--pink); }
+.code-string { color: var(--green); }
+.code-number { color: var(--purple); }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+th { background: var(--bg3); color: var(--accent2); font-size: 13px; font-weight: 600; padding: 12px 16px; text-align: left; border-bottom: 2px solid var(--border); }
+td { padding: 12px 16px; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); }
+tr:hover td { background: rgba(88,166,255,0.04); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+.badge-yellow { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.badge-red { background: rgba(255,123,114,0.15); color: var(--pink); }
+.chart-container { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; }
+.chart-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+.chart-wrap { position: relative; height: 280px; }
+.tip { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.25); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; color: var(--text2); }
+.tip strong { color: var(--accent); }
+
+/* 工具分类卡片 */
+.tool-category { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+.tool-cat-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+.tool-cat-icon { font-size: 20px; }
+.tool-cat-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.tool-cat-count { margin-left: auto; font-size: 12px; color: var(--text2); background: var(--bg3); padding: 2px 8px; border-radius: 10px; }
+.tool-list { padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.tool-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.tool-name { font-size: 13px; font-weight: 600; color: var(--pink); font-family: monospace; margin-bottom: 4px; }
+.tool-desc { font-size: 11px; color: var(--text2); }
+.tool-perm { display: inline-block; margin-top: 4px; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+.perm-allow { background: rgba(63,185,80,0.15); color: var(--green); }
+.perm-gated { background: rgba(210,153,34,0.15); color: var(--yellow); }
+
+/* MCP 连接图 */
+.mcp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin: 16px 0; }
+.mcp-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+.mcp-icon { font-size: 24px; margin-bottom: 8px; }
+.mcp-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.mcp-desc { font-size: 11px; color: var(--text2); }
+
+/* 权限层 */
+.perm-layers { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
+.perm-layer { border-radius: 10px; padding: 16px 20px; border-left: 4px solid; }
+.pl-deny { background: rgba(255,123,114,0.08); border-color: var(--pink); }
+.pl-allow { background: rgba(63,185,80,0.08); border-color: var(--green); }
+.pl-gated { background: rgba(210,153,34,0.08); border-color: var(--yellow); }
+.perm-layer h4 { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+.pl-deny h4 { color: var(--pink); }
+.pl-allow h4 { color: var(--green); }
+.pl-gated h4 { color: var(--yellow); }
+.perm-layer .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.perm-layer .tools span { font-size: 11px; font-family: monospace; background: var(--bg3); padding: 2px 6px; border-radius: 4px; color: var(--text2); }
+
+@media (max-width: 1024px) {
+  .topnav-links { display: none; }
+  .main { padding-top: var(--topnav-h); }
+  .content { padding: 24px 24px 48px; }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; }
+  .hero { padding: 32px 24px; }
+  .content { padding: 20px 16px 48px; }
+  .dropdown-panel { right: -16px; min-width: calc(100vw - 32px); }
+}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">
+    <span class="logo-icon">⚡</span>
+    <span>Claude Code</span>
+    <span class="logo-badge">深度解析</span>
+  </a>
+  <div class="topnav-links">
+    <a href="#">技术模块</a>
+    <a href="#">使用指南</a>
+    <div class="dropdown">
+      <button class="dropdown-btn" id="detailDropBtn">
+        详细拆解 <span class="arrow">▾</span>
+      </button>
+      <div class="dropdown-panel" id="detailDropPanel">
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">🔧 核心引擎</div>
+          <a href="claude_code_harness.html" class="dropdown-item"><span class="di-icon">🔧</span><span class="di-text">Harness 执行引擎</span></a>
+          <a href="claude_code_context.html" class="dropdown-item"><span class="di-icon">🧠</span><span class="di-text">Context 上下文系统</span></a>
+          <a href="claude_code_memory.html" class="dropdown-item"><span class="di-icon">💾</span><span class="di-text">Memory 记忆系统</span></a>
+          <a href="claude_code_tools.html" class="dropdown-item active"><span class="di-icon">🛠️</span><span class="di-text">Tool System 工具系统</span></a>
+          <a href="claude_code_agent_loop.html" class="dropdown-item"><span class="di-icon">🔄</span><span class="di-text">Agent Loop 执行循环</span></a>
+          <a href="claude_code_multi_agent.html" class="dropdown-item"><span class="di-icon">🤝</span><span class="di-text">Multi-Agent 多智能体</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📖 使用指南</div>
+          <a href="claude_code_user_manual.html" class="dropdown-item"><span class="di-icon">📖</span><span class="di-text">用户完整手册</span></a>
+          <a href="claude_code_prompt_guide.html" class="dropdown-item"><span class="di-icon">✍️</span><span class="di-text">Prompt 工程指南</span></a>
+          <a href="claude_code_cases.html" class="dropdown-item"><span class="di-icon">🚀</span><span class="di-text">实战案例库</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📊 深度报告</div>
+          <a href="claude_code_comparison.html" class="dropdown-item"><span class="di-icon">⚖️</span><span class="di-text">工具对比分析</span></a>
+          <a href="claude_code_report.html" class="dropdown-item"><span class="di-icon">🏗️</span><span class="di-text">架构深度拆解报告</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="topnav-right">
+    <span class="version-badge">✦ 2026 Q2</span>
+  </div>
+</nav>
+
+<div class="layout">
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <a href="index.html">
+      <div class="logo-title">🛠️ Claude Code</div>
+      <div class="logo-sub">技术深度解析系列</div>
+    </a>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section">当前模块</div>
+    <a href="#overview" class="nav-item active">🗺️ 工具系统架构</a>
+    <a href="#builtin" class="nav-item">🔧 内置工具列表</a>
+    <a href="#protocol" class="nav-item">📡 调用协议</a>
+    <a href="#permissions" class="nav-item">🔐 权限控制</a>
+    <a href="#mcp" class="nav-item">🔌 MCP 扩展协议</a>
+    <a href="#skills" class="nav-item">⭐ Skills 能力</a>
+    <a href="#best-practices" class="nav-item">✅ 最佳实践</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="hero">
+    <div class="hero-badge">🛠️ 技术深度解析 · 第四篇</div>
+    <h1>Tool System <span>工具系统</span></h1>
+    <p>约 40 个内置工具 + MCP 扩展协议，让 Claude 能够读写文件、执行命令、搜索网络、操控浏览器，甚至控制整个计算机。</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><div class="dot" style="background:var(--orange)"></div>~40 个内置工具</div>
+      <div class="hero-meta-item"><div class="dot" style="background:var(--green)"></div>MCP 连接 6000+ 应用</div>
+      <div class="hero-meta-item"><div class="dot" style="background:var(--purple)"></div>Computer Use 新增</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- 1. 架构 -->
+    <div class="section" id="overview">
+      <div class="section-header">
+        <div class="section-num">1</div>
+        <h2>工具系统架构</h2>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">工具调用量分布（典型项目会话）</div>
+        <div class="chart-wrap">
+          <canvas id="toolUsageChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">🔧</div>
+          <h4>内置工具（~40个）</h4>
+          <p>文件系统、搜索、执行、网络、Git、Computer Use 等核心工具，开箱即用</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔌</div>
+          <h4>MCP 工具（6000+应用）</h4>
+          <p>通过 Model Context Protocol 连接 GitHub、Slack、Notion、Stripe 等外部服务</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">⭐</div>
+          <h4>Skills 工具</h4>
+          <p>模块化能力文件，包含指令、脚本和资源，可以被 Claude 加载和执行</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 内置工具 -->
+    <div class="section" id="builtin">
+      <div class="section-header">
+        <div class="section-num">2</div>
+        <h2>内置工具完整列表</h2>
+      </div>
+
+      <div class="tool-category">
+        <div class="tool-cat-header">
+          <div class="tool-cat-icon">📁</div>
+          <div class="tool-cat-title">文件系统工具</div>
+          <div class="tool-cat-count">6 个工具</div>
+        </div>
+        <div class="tool-list">
+          <div class="tool-item"><div class="tool-name">read</div><div class="tool-desc">读取文件内容</div><span class="tool-perm perm-allow">Always Allow</span></div>
+          <div class="tool-item"><div class="tool-name">write</div><div class="tool-desc">写入/创建文件</div><span class="tool-perm perm-gated">User-Gated</span></div>
+          <div class="tool-item"><div class="tool-name">edit</div><div class="tool-desc">精确编辑文件</div><span class="tool-perm perm-gated">User-Gated</span></div>
+          <div class="tool-item"><div class="tool-name">multi_edit</div><div class="tool-desc">批量编辑多文件</div><span class="tool-perm perm-gated">User-Gated</span></div>
+          <div class="tool-item"><div class="tool-name">glob</div><div class="tool-desc">文件模式匹配</div><span class="tool-perm perm-allow">Always Allow</span></div>
+          <div class="tool-item"><div class="tool-name">ls</div><div class="tool-desc">列出目录内容</div><span class="tool-perm perm-allow">Always Allow</span></div>
+        </div>
+      </div>
+
+      <div class="tool-category">
+        <div class="tool-cat-header">
+          <div class="tool-cat-icon">🔍</div>
+          <div class="tool-cat-title">搜索工具</div>
+          <div class="tool-cat-count">4 个工具</div>
+        </div>
+        <div class="tool-list">
+          <div class="tool-item"><div class="tool-name">grep</div><div class="tool-desc">正则表达式搜索</div><span class="tool-perm perm-allow">Always Allow</span></div>
+          <div class="tool-item"><div class="tool-name">search_files</div><div class="tool-desc">语义搜索文件</div><span class="tool-perm perm-allow">Always Allow</span></div>
+          <div class="tool-item"><div class="tool-name">find_definition</div><div class="tool-desc">查找函数/类定义</div><span class="tool-perm perm-allow">Always Allow</span></div>
+          <div class="tool-item"><div class="tool-name">find_references</div><div class="tool-desc">查找引用位置</div><span class="tool-perm perm-allow">Always Allow</span></div>
+        </div>
+      </div>
+
+      <div class="tool-category">
+        <div class="tool-cat-header">
+          <div class="tool-cat-icon">⚡</div>
+          <div class="tool-cat-title">执行工具</div>
+          <div class="tool-cat-count">3 个工具</div>
+        </div>
+        <div class="tool-list">
+          <div class="tool-item"><div class="tool-name">bash</div><div class="tool-desc">执行 shell 命令</div><span class="tool-perm perm-gated">User-Gated</span></div>
+          <div class="tool-item"><div class="tool-name">python</div><div class="tool-desc">执行 Python 代码</div><span class="tool-perm perm-gated">User-Gated</span></div>
+          <div class="tool-item"><div class="tool-name">node</div><div class="tool-desc">执行 Node.js 代码</div><span class="tool-perm perm-gated">User-Gated</span></div>
+        </div>
+      </div>
+
+      <div class="tool-category">
+        <div class="tool-cat-header">
+          <div class="tool-cat-icon">🌐</div>
+          <div class="tool-cat-title">网络工具</div>
+          <div class="tool-cat-count">3 个工具</div>
+        </div>
+        <div class="tool-list">
+          <div class="tool-item"><div class="tool-name">web_fetch</div><div class="tool-desc">获取网页内容</div><span class="tool-perm perm-gated">User-Gated</span></div>
+          <div class="tool-item"><div class="tool-name">web_search</div><div class="tool-desc">搜索网络</div><span class="tool-perm perm-gated">User-Gated</span></div>
+          <div class="tool-item"><div class="tool-name">http_request</div><div class="tool-desc">发送 HTTP 请求</div><span class="tool-perm perm-gated">User-Gated</span></div>
+        </div>
+      </div>
+
+      <div class="tool-category">
+        <div class="tool-cat-header">
+          <div class="tool-cat-icon">🖥️</div>
+          <div class="tool-cat-title">Computer Use 工具（2026年3月新增）</div>
+          <div class="tool-cat-count">3 个工具</div>
+        </div>
+        <div class="tool-list">
+          <div class="tool-item"><div class="tool-name">computer_use</div><div class="tool-desc">控制鼠标和键盘</div><span class="tool-perm perm-gated">User-Gated</span></div>
+          <div class="tool-item"><div class="tool-name">screenshot</div><div class="tool-desc">截取屏幕</div><span class="tool-perm perm-allow">Always Allow</span></div>
+          <div class="tool-item"><div class="tool-name">browser_action</div><div class="tool-desc">控制浏览器</div><span class="tool-perm perm-gated">User-Gated</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 协议 -->
+    <div class="section" id="protocol">
+      <div class="section-header">
+        <div class="section-num">3</div>
+        <h2>工具调用协议</h2>
+      </div>
+
+      <pre><code><span class="code-comment">// Claude 发出的工具调用请求</span>
+{
+  <span class="code-string">"type"</span>: <span class="code-string">"tool_use"</span>,
+  <span class="code-string">"id"</span>: <span class="code-string">"toolu_01A09q90qw90lq917835lq9"</span>,
+  <span class="code-string">"name"</span>: <span class="code-string">"bash"</span>,
+  <span class="code-string">"input"</span>: {
+    <span class="code-string">"command"</span>: <span class="code-string">"npm test -- --coverage"</span>,
+    <span class="code-string">"timeout"</span>: <span class="code-number">120</span>
+  }
+}
+
+<span class="code-comment">// 工具执行结果</span>
+{
+  <span class="code-string">"type"</span>: <span class="code-string">"tool_result"</span>,
+  <span class="code-string">"tool_use_id"</span>: <span class="code-string">"toolu_01A09q90qw90lq917835lq9"</span>,
+  <span class="code-string">"content"</span>: <span class="code-string">"Tests: 47 passed, 0 failed\nCoverage: 87.3%"</span>
+}</code></pre>
+
+      <div class="tip">
+        <strong>💡 并行调用：</strong>Claude 可以在一次响应中发出多个工具调用请求，Harness 会并行执行它们，大幅减少总延迟。
+      </div>
+    </div>
+
+    <!-- 4. 权限 -->
+    <div class="section" id="permissions">
+      <div class="section-header">
+        <div class="section-num">4</div>
+        <h2>权限控制系统</h2>
+      </div>
+
+      <div class="perm-layers">
+        <div class="perm-layer pl-deny">
+          <h4>🚫 Always Deny（永远拒绝）</h4>
+          <div class="tools">
+            <span>rm -rf /</span><span>sudo *</span><span>/etc/**</span><span>~/.ssh/**</span><span>curl * | bash</span>
+          </div>
+        </div>
+        <div class="perm-layer pl-allow">
+          <h4>✅ Always Allow（永远允许）</h4>
+          <div class="tools">
+            <span>read</span><span>grep</span><span>glob</span><span>ls</span><span>git_status</span><span>git_diff</span><span>find_definition</span><span>screenshot</span>
+          </div>
+        </div>
+        <div class="perm-layer pl-gated">
+          <h4>⚠️ User-Gated（用户审批）</h4>
+          <div class="tools">
+            <span>write</span><span>edit</span><span>bash</span><span>python</span><span>web_fetch</span><span>http_request</span><span>computer_use</span><span>git_commit</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">工具权限分布</div>
+        <div class="chart-wrap">
+          <canvas id="permChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. MCP -->
+    <div class="section" id="mcp">
+      <div class="section-header">
+        <div class="section-num">5</div>
+        <h2>MCP 扩展协议</h2>
+      </div>
+      <p style="color:var(--text2);line-height:1.8;margin-bottom:20px">MCP（Model Context Protocol）是 Anthropic 开发的开放标准，允许 Claude 连接几乎任何外部服务。</p>
+
+      <div class="mcp-grid">
+        <div class="mcp-item"><div class="mcp-icon">🐙</div><div class="mcp-name">GitHub</div><div class="mcp-desc">Issues, PRs, 代码</div></div>
+        <div class="mcp-item"><div class="mcp-icon">💬</div><div class="mcp-name">Slack</div><div class="mcp-desc">消息, 频道</div></div>
+        <div class="mcp-item"><div class="mcp-icon">📋</div><div class="mcp-name">Jira</div><div class="mcp-desc">任务, Sprint</div></div>
+        <div class="mcp-item"><div class="mcp-icon">📝</div><div class="mcp-name">Notion</div><div class="mcp-desc">文档, 数据库</div></div>
+        <div class="mcp-item"><div class="mcp-icon">💳</div><div class="mcp-name">Stripe</div><div class="mcp-desc">支付, 订阅</div></div>
+        <div class="mcp-item"><div class="mcp-icon">🎨</div><div class="mcp-name">Figma</div><div class="mcp-desc">设计, 组件</div></div>
+        <div class="mcp-item"><div class="mcp-icon">📊</div><div class="mcp-name">Google Drive</div><div class="mcp-desc">文件, 表格</div></div>
+        <div class="mcp-item"><div class="mcp-icon">⚡</div><div class="mcp-name">Zapier</div><div class="mcp-desc">6000+ 应用</div></div>
+      </div>
+
+      <pre><code><span class="code-comment">// .claude/mcp.json 配置示例</span>
+{
+  <span class="code-string">"mcpServers"</span>: {
+    <span class="code-string">"github"</span>: {
+      <span class="code-string">"command"</span>: <span class="code-string">"npx"</span>,
+      <span class="code-string">"args"</span>: [<span class="code-string">"-y"</span>, <span class="code-string">"@modelcontextprotocol/server-github"</span>],
+      <span class="code-string">"env"</span>: { <span class="code-string">"GITHUB_TOKEN"</span>: <span class="code-string">"${GITHUB_TOKEN}"</span> }
+    },
+    <span class="code-string">"slack"</span>: {
+      <span class="code-string">"command"</span>: <span class="code-string">"npx"</span>,
+      <span class="code-string">"args"</span>: [<span class="code-string">"-y"</span>, <span class="code-string">"@modelcontextprotocol/server-slack"</span>],
+      <span class="code-string">"env"</span>: { <span class="code-string">"SLACK_BOT_TOKEN"</span>: <span class="code-string">"${SLACK_BOT_TOKEN}"</span> }
+    }
+  }
+}</code></pre>
+    </div>
+
+    <!-- 6. Skills -->
+    <div class="section" id="skills">
+      <div class="section-header">
+        <div class="section-num">6</div>
+        <h2>Skills：模块化能力</h2>
+      </div>
+
+      <pre><code><span class="code-comment">&lt;!-- .claude/skills/deploy.md --&gt;</span>
+<span class="code-comment"># 部署技能</span>
+
+<span class="code-comment">## 描述</span>
+自动化部署流程，包含构建、测试、部署三个阶段
+
+<span class="code-comment">## 步骤</span>
+1. 运行测试：`npm test`
+2. 构建项目：`npm run build`
+3. 上传到 S3：`aws s3 sync dist/ s3://my-bucket/`
+4. 清除 CDN 缓存：`aws cloudfront create-invalidation ...`
+
+<span class="code-comment">## 回滚方案</span>
+如果部署失败，执行：`aws s3 sync s3://backup/ s3://my-bucket/`</code></pre>
+
+      <pre><code><span class="code-comment"># 使用 Skills</span>
+claude <span class="code-string">"使用 deploy skill 部署到生产环境"</span>
+claude /skills                    <span class="code-comment"># 列出可用 Skills</span>
+claude <span class="code-string">"创建一个 skill，用于自动化数据库备份"</span></code></pre>
+    </div>
+
+    <!-- 7. 最佳实践 -->
+    <div class="section" id="best-practices">
+      <div class="section-header">
+        <div class="section-num">7</div>
+        <h2>最佳实践</h2>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">🎯</div>
+          <h4>先搜索，再读取</h4>
+          <p>用 grep 定位目标代码，再精确读取，避免加载整个目录浪费 token</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">⚡</div>
+          <h4>利用并行调用</h4>
+          <p>明确告诉 Claude 并行处理多个文件，减少总执行时间</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔐</div>
+          <h4>最小权限原则</h4>
+          <p>在 settings.json 中精确指定允许的操作，避免过于宽泛的权限</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔌</div>
+          <h4>善用 MCP 扩展</h4>
+          <p>将常用的外部服务通过 MCP 接入，让 Claude 直接操作 GitHub、Slack 等</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div><!-- /.layout -->
+
+<script>
+// 工具使用量分布
+const toolCtx = document.getElementById('toolUsageChart').getContext('2d');
+new Chart(toolCtx, {
+  type: 'bar',
+  data: {
+    labels: ['grep', 'read', 'bash', 'write', 'glob', 'web_search', 'git_*', 'edit', '其他'],
+    datasets: [{
+      label: '平均调用次数（每会话）',
+      data: [18, 15, 12, 10, 8, 5, 7, 6, 4],
+      backgroundColor: [
+        'rgba(88,166,255,0.7)', 'rgba(63,185,80,0.7)', 'rgba(255,123,114,0.7)',
+        'rgba(210,153,34,0.7)', 'rgba(188,140,255,0.7)', 'rgba(240,136,62,0.7)',
+        'rgba(57,211,83,0.7)', 'rgba(121,192,255,0.7)', 'rgba(139,148,158,0.7)'
+      ],
+      borderColor: ['#58a6ff','#3fb950','#ff7b72','#d29922','#bc8cff','#f0883e','#39d353','#79c0ff','#8b949e'],
+      borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' } },
+      y: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' } }
+    }
+  }
+});
+
+// 权限分布
+const permCtx = document.getElementById('permChart').getContext('2d');
+new Chart(permCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['Always Allow（只读类）', 'User-Gated（写入/执行类）', 'Always Deny（危险操作）'],
+    datasets: [{
+      data: [45, 48, 7],
+      backgroundColor: ['rgba(63,185,80,0.7)', 'rgba(210,153,34,0.7)', 'rgba(255,123,114,0.7)'],
+      borderColor: ['#3fb950', '#d29922', '#ff7b72'],
+      borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'right', labels: { color: '#c9d1d9', font: { size: 12 }, padding: 12 } } }
+  }
+});
+</script>
+<script>
+// Dropdown
+const dropBtn = document.getElementById('detailDropBtn');
+const dropPanel = document.getElementById('detailDropPanel');
+dropBtn.addEventListener('click', () => {
+  dropPanel.classList.toggle('open');
+  dropBtn.classList.toggle('open');
+});
+document.addEventListener('click', e => {
+  if (!dropBtn.contains(e.target) && !dropPanel.contains(e.target)) {
+    dropPanel.classList.remove('open');
+    dropBtn.classList.remove('open');
+  }
+});
+
+// Sidebar active link on scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      const id = entry.target.id;
+      const active = document.querySelector(`.nav-item[href="#${id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -60% 0px' });
+document.querySelectorAll('.section[id]').forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

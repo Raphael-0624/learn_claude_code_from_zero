@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 编程工具对比与选型指南 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+  --border: #30363d; --text: #e6edf3; --text2: #8b949e;
+  --accent: #58a6ff; --accent2: #79c0ff;
+  --green: #3fb950; --yellow: #d29922; --orange: #f0883e;
+  --red: #f85149; --purple: #bc8cff; --pink: #ff7b72;
+  --sidebar-w: 260px;
+  --topnav-h: 60px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif; font-size: 14px; line-height: 1.7; }
+.topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    height: var(--topnav-h);
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+}
+.topnav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 700; color: #fff; text-decoration: none;
+    flex-shrink: 0; border-radius: 6px; transition: background 0.15s;
+    padding: 4px 8px; margin: -4px -8px;
+}
+.topnav-logo:hover { background: var(--bg3); text-decoration: none; }
+.topnav-logo .logo-icon { font-size: 20px; }
+.topnav-logo .logo-badge {
+    font-size: 10px; background: var(--accent); color: #000;
+    padding: 1px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;
+}
+.topnav-links { display: flex; align-items: center; gap: 4px; }
+.topnav-links a {
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+}
+.topnav-links a:hover { color: var(--text); background: var(--bg3); }
+.topnav-links a.active { color: var(--accent); }
+.topnav-right { display: flex; align-items: center; gap: 12px; }
+.version-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--green); font-weight: 600;
+}
+.dropdown { position: relative; }
+.dropdown-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-radius: 6px; transition: all 0.2s;
+    cursor: pointer; border: none; background: none;
+    font-family: inherit;
+}
+.dropdown-btn:hover, .dropdown-btn.open { color: var(--text); background: var(--bg3); }
+.dropdown-btn .arrow { font-size: 10px; transition: transform 0.2s; }
+.dropdown-btn.open .arrow { transform: rotate(180deg); }
+.dropdown-panel {
+    display: none;
+    position: absolute; top: calc(100% + 8px); right: 0;
+    min-width: 380px;
+    background: rgba(13,17,23,0.97);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    z-index: 2000;
+}
+.dropdown-panel.open { display: block; }
+.dropdown-group { margin-bottom: 12px; }
+.dropdown-group:last-child { margin-bottom: 0; }
+.dropdown-group-title {
+    font-size: 10px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0 8px 6px;
+}
+.dropdown-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--text2);
+    text-decoration: none; transition: all 0.15s;
+}
+.dropdown-item:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
+.dropdown-item.active { color: var(--accent); background: rgba(88,166,255,0.08); }
+.dropdown-item .di-icon { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+.dropdown-item .di-text { flex: 1; }
+.dropdown-sep { height: 1px; background: var(--border); margin: 8px 0; }
+.layout { display: flex; padding-top: var(--topnav-h); min-height: 100vh; }
+#sidebar { width: var(--sidebar-w); height: calc(100vh - var(--topnav-h)); background: var(--bg2); border-right: 1px solid var(--border); position: fixed; top: var(--topnav-h); left: 0; overflow-y: auto; padding: 16px 0 40px; z-index: 100; }
+#sidebar .logo { padding: 0 16px 16px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+#sidebar .logo a {
+    display: block; text-decoration: none; border-radius: 6px;
+    transition: background 0.15s; padding: 4px 0;
+}
+#sidebar .logo a:hover { background: var(--bg3); text-decoration: none; }
+#sidebar .logo h2 { font-size: 13px; font-weight: 700; color: var(--accent); }
+#sidebar .logo p { font-size: 11px; color: var(--text2); margin-top: 4px; }
+#sidebar nav a { display: block; padding: 5px 16px; color: var(--text2); text-decoration: none; font-size: 12px; border-left: 2px solid transparent; transition: all 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#sidebar nav a:hover { color: var(--text); background: var(--bg3); border-left-color: var(--accent); }
+#sidebar nav a.sidebar-link.active { color: var(--accent); background: rgba(88,166,255,0.08); border-left-color: var(--accent); }
+#sidebar nav .section-label { padding: 10px 16px 4px; font-size: 10px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
+#main { margin-left: var(--sidebar-w); flex: 1; padding: 32px 48px 60px; min-width: 0; }
+h1 { font-size: 28px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+h2 { font-size: 20px; font-weight: 700; color: var(--accent); margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 16px; font-weight: 600; color: var(--accent2); margin: 28px 0 12px; }
+h4 { font-size: 14px; font-weight: 600; color: var(--text); margin: 20px 0 8px; }
+p { margin-bottom: 12px; }
+ul, ol { padding-left: 20px; margin-bottom: 12px; }
+li { margin-bottom: 4px; }
+strong { color: var(--text); font-weight: 600; }
+code { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; color: var(--pink); }
+pre { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; overflow-x: auto; margin: 12px 0 20px; }
+pre code { background: none; border: none; padding: 0; color: var(--text); font-size: 13px; line-height: 1.6; }
+.table-wrap { overflow-x: auto; margin: 12px 0 20px; border-radius: 8px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--bg3); color: var(--text2); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13px; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(88,166,255,0.04); }
+.callout { border-radius: 8px; padding: 14px 18px; margin: 16px 0; border-left: 3px solid; font-size: 13px; }
+.callout-info { background: rgba(88,166,255,0.08); border-color: var(--accent); }
+.callout-tip { background: rgba(63,185,80,0.08); border-color: var(--green); }
+.callout-warn { background: rgba(210,153,34,0.08); border-color: var(--yellow); }
+.callout-title { font-weight: 700; margin-bottom: 4px; }
+.tool-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 20px 0; }
+.tool-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 14px; text-align: center; }
+.tool-card .tool-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.tool-card .tool-tag { font-size: 10px; color: var(--text2); margin-bottom: 8px; }
+.tool-card .tool-price { font-size: 12px; color: var(--accent); font-weight: 600; margin-bottom: 6px; }
+.tool-card .tool-stars { font-size: 12px; }
+.score-bar { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.score-bar .label { font-size: 12px; color: var(--text2); min-width: 80px; }
+.score-bar .bar-wrap { flex: 1; background: var(--bg3); border-radius: 4px; height: 6px; }
+.score-bar .bar { height: 6px; border-radius: 4px; }
+.tool-review { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+.tool-review .tool-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.tool-review .tool-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.tool-review .tool-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.tool-review .tool-subtitle { font-size: 12px; color: var(--text2); }
+.pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
+.pros { background: rgba(63,185,80,0.05); border: 1px solid rgba(63,185,80,0.2); border-radius: 8px; padding: 12px 14px; }
+.cons { background: rgba(248,81,73,0.05); border: 1px solid rgba(248,81,73,0.2); border-radius: 8px; padding: 12px 14px; }
+.pros h5 { color: var(--green); font-size: 12px; margin-bottom: 8px; }
+.cons h5 { color: var(--red); font-size: 12px; margin-bottom: 8px; }
+.pros li, .cons li { font-size: 12px; color: var(--text2); margin-bottom: 3px; }
+.decision-tree { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 2; }
+.decision-tree .q { color: var(--accent2); }
+.decision-tree .a { color: var(--green); }
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 24px 0; }
+.chart-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.chart-card h4 { color: var(--text2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+.chart-card canvas { max-height: 220px; }
+.chart-full { grid-column: 1 / -1; }
+.page-header { padding-bottom: 24px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.meta { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+.meta-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+.meta-item span { color: var(--text); }
+.toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0 32px; }
+.toc-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; color: var(--text2); font-size: 13px; transition: all 0.15s; }
+.toc-item:hover { color: var(--text); border-color: var(--accent); background: var(--bg3); text-decoration: none; }
+.toc-num { font-size: 11px; font-weight: 700; color: var(--accent); min-width: 24px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge-yes { background: rgba(63,185,80,0.15); color: var(--green); }
+.badge-no { background: rgba(248,81,73,0.15); color: var(--red); }
+.badge-partial { background: rgba(210,153,34,0.15); color: var(--yellow); }
+hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+@media (max-width: 1024px) {
+    .topnav-links { display: none; }
+    #main { padding: 24px 24px 48px; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .toc-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+    #sidebar { display: none; }
+    #main { margin-left: 0; padding: 20px 16px 48px; }
+    .dropdown-panel { right: -16px; min-width: calc(100vw - 32px); }
+    .tool-cards { grid-template-columns: 1fr 1fr; }
+    .pros-cons, .chart-grid, .toc-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">
+    <span class="logo-icon">⚡</span>
+    <span>Claude Code</span>
+    <span class="logo-badge">深度解析</span>
+  </a>
+  <div class="topnav-links">
+    <a href="#">技术模块</a>
+    <a href="#">使用指南</a>
+    <div class="dropdown">
+      <button class="dropdown-btn" id="detailDropBtn">
+        详细拆解 <span class="arrow">▾</span>
+      </button>
+      <div class="dropdown-panel" id="detailDropPanel">
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">🔧 核心引擎</div>
+          <a href="claude_code_harness.html" class="dropdown-item"><span class="di-icon">🔧</span><span class="di-text">Harness 执行引擎</span></a>
+          <a href="claude_code_context.html" class="dropdown-item"><span class="di-icon">🧠</span><span class="di-text">Context 上下文系统</span></a>
+          <a href="claude_code_memory.html" class="dropdown-item"><span class="di-icon">💾</span><span class="di-text">Memory 记忆系统</span></a>
+          <a href="claude_code_tools.html" class="dropdown-item"><span class="di-icon">🛠️</span><span class="di-text">Tool System 工具系统</span></a>
+          <a href="claude_code_agent_loop.html" class="dropdown-item"><span class="di-icon">🔄</span><span class="di-text">Agent Loop 执行循环</span></a>
+          <a href="claude_code_multi_agent.html" class="dropdown-item"><span class="di-icon">🤝</span><span class="di-text">Multi-Agent 多智能体</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📖 使用指南</div>
+          <a href="claude_code_user_manual.html" class="dropdown-item"><span class="di-icon">📖</span><span class="di-text">用户完整手册</span></a>
+          <a href="claude_code_prompt_guide.html" class="dropdown-item"><span class="di-icon">✍️</span><span class="di-text">Prompt 工程指南</span></a>
+          <a href="claude_code_cases.html" class="dropdown-item"><span class="di-icon">🚀</span><span class="di-text">实战案例库</span></a>
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-group">
+          <div class="dropdown-group-title">📊 深度报告</div>
+          <a href="claude_code_comparison.html" class="dropdown-item active"><span class="di-icon">⚖️</span><span class="di-text">工具对比分析</span></a>
+          <a href="claude_code_report.html" class="dropdown-item"><span class="di-icon">🏗️</span><span class="di-text">架构深度拆解报告</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="topnav-right">
+    <span class="version-badge">✦ 2026 Q2</span>
+  </div>
+</nav>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div class="logo">
+    <a href="index.html">
+      <h2>AI 工具对比指南</h2>
+      <p>2026年 Q2 最新评测</p>
+    </a>
+  </div>
+  <nav>
+    <div class="section-label">概览</div>
+    <a href="#overview" class="sidebar-link">01 · 五款工具速览</a>
+    <a href="#charts" class="sidebar-link">可视化对比</a>
+    <div class="section-label">功能对比</div>
+    <a href="#features" class="sidebar-link">02 · 功能全面对比</a>
+    <div class="section-label">价格分析</div>
+    <a href="#pricing" class="sidebar-link">03 · 价格与成本</a>
+    <div class="section-label">选型指南</div>
+    <a href="#selection" class="sidebar-link">04 · 场景选型指南</a>
+    <a href="#decision" class="sidebar-link">决策树</a>
+    <div class="section-label">深度评测</div>
+    <a href="#reviews" class="sidebar-link">05 · 各工具深度评测</a>
+    <a href="#claude-code" class="sidebar-link">Claude Code</a>
+    <a href="#cursor" class="sidebar-link">Cursor</a>
+    <a href="#copilot" class="sidebar-link">GitHub Copilot</a>
+    <a href="#aider" class="sidebar-link">Aider</a>
+    <div class="section-label">策略</div>
+    <a href="#combo" class="sidebar-link">06 · 组合使用策略</a>
+    <a href="#migration" class="sidebar-link">07 · 迁移指南</a>
+    <a href="#trends" class="sidebar-link">08 · 2026年趋势</a>
+  </nav>
+</aside>
+
+<main id="main">
+  <div class="page-header">
+    <h1>AI 编程工具对比与选型指南</h1>
+    <div class="meta">
+      <div class="meta-item">📅 <span>2026年 Q2</span></div>
+      <div class="meta-item">🔍 <span>5款工具深度评测</span></div>
+      <div class="meta-item">💰 <span>最新定价数据</span></div>
+      <div class="meta-item">🎯 <span>场景化选型建议</span></div>
+    </div>
+  </div>
+
+  <div class="toc-grid">
+    <a href="#overview" class="toc-item"><span class="toc-num">01</span>五款工具速览</a>
+    <a href="#features" class="toc-item"><span class="toc-num">02</span>功能全面对比</a>
+    <a href="#pricing" class="toc-item"><span class="toc-num">03</span>价格与成本分析</a>
+    <a href="#selection" class="toc-item"><span class="toc-num">04</span>场景选型指南</a>
+    <a href="#reviews" class="toc-item"><span class="toc-num">05</span>各工具深度评测</a>
+    <a href="#combo" class="toc-item"><span class="toc-num">06</span>组合使用策略</a>
+    <a href="#migration" class="toc-item"><span class="toc-num">07</span>迁移指南</a>
+    <a href="#trends" class="toc-item"><span class="toc-num">08</span>2026年趋势</a>
+  </div>
+
+  <!-- 01 速览 -->
+  <h2 id="overview">01 · 五款工具一分钟速览</h2>
+  <div class="tool-cards">
+    <div class="tool-card" style="border-color:rgba(88,166,255,0.3)">
+      <div class="tool-name">Claude Code</div>
+      <div class="tool-tag">终端 AI Agent</div>
+      <div class="tool-price">$20-200/月</div>
+      <div class="tool-stars">⭐⭐⭐⭐⭐</div>
+    </div>
+    <div class="tool-card" style="border-color:rgba(63,185,80,0.3)">
+      <div class="tool-name">Cursor</div>
+      <div class="tool-tag">AI 代码编辑器</div>
+      <div class="tool-price">$0-200/月</div>
+      <div class="tool-stars">⭐⭐⭐⭐⭐</div>
+    </div>
+    <div class="tool-card" style="border-color:rgba(188,140,255,0.3)">
+      <div class="tool-name">GitHub Copilot</div>
+      <div class="tool-tag">IDE 插件</div>
+      <div class="tool-price">$0-39/用户</div>
+      <div class="tool-stars">⭐⭐⭐⭐</div>
+    </div>
+    <div class="tool-card" style="border-color:rgba(240,136,62,0.3)">
+      <div class="tool-name">Aider</div>
+      <div class="tool-tag">开源终端工具</div>
+      <div class="tool-price">免费+API费</div>
+      <div class="tool-stars">⭐⭐⭐⭐</div>
+    </div>
+    <div class="tool-card" style="border-color:rgba(210,153,34,0.3)">
+      <div class="tool-name">Cline</div>
+      <div class="tool-tag">VS Code 插件</div>
+      <div class="tool-price">免费+API费</div>
+      <div class="tool-stars">⭐⭐⭐</div>
+    </div>
+  </div>
+
+  <!-- 图表 -->
+  <h2 id="charts">可视化对比</h2>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h4>综合能力雷达图（Claude Code）</h4>
+      <canvas id="radarChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h4>月费对比（个人开发者）</h4>
+      <canvas id="priceChart"></canvas>
+    </div>
+    <div class="chart-card chart-full">
+      <h4>各维度能力对比（满分5分）</h4>
+      <canvas id="compareChart"></canvas>
+    </div>
+  </div>
+
+  <!-- 02 功能对比 -->
+  <h2 id="features">02 · 功能全面对比</h2>
+
+  <h3>核心能力对比</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>功能</th><th>Claude Code</th><th>Cursor</th><th>GitHub Copilot</th><th>Aider</th><th>Cline</th></tr>
+      <tr><td>代码补全</td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-yes">✅ 极强</span></td><td><span class="badge badge-yes">✅ 强</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-yes">✅</span></td></tr>
+      <tr><td>多文件编辑</td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td></tr>
+      <tr><td>代码库理解</td><td><span class="badge badge-yes">✅ 极强</span></td><td><span class="badge badge-yes">✅ 极强</span></td><td><span class="badge badge-partial">✅ 中等</span></td><td><span class="badge badge-yes">✅ 强</span></td><td><span class="badge badge-partial">✅ 中等</span></td></tr>
+      <tr><td>自主 Agent 模式</td><td><span class="badge badge-yes">✅ 极强</span></td><td><span class="badge badge-yes">✅ 强</span></td><td><span class="badge badge-partial">✅ 中等</span></td><td><span class="badge badge-partial">✅ 中等</span></td><td><span class="badge badge-partial">✅ 中等</span></td></tr>
+      <tr><td>记忆系统</td><td><span class="badge badge-yes">✅ 完整</span></td><td><span class="badge badge-partial">✅ 基础</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td></tr>
+      <tr><td>MCP 集成</td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-yes">✅</span></td></tr>
+      <tr><td>多 Agent 协作</td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td></tr>
+      <tr><td>CI/CD 集成</td><td><span class="badge badge-yes">✅ 强</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-no">❌</span></td></tr>
+      <tr><td>离线/本地模型</td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td></tr>
+      <tr><td>企业 SSO</td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td></tr>
+    </table>
+  </div>
+
+  <!-- 03 价格 -->
+  <h2 id="pricing">03 · 价格与成本分析</h2>
+
+  <h3>定价方案对比</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>工具</th><th>免费计划</th><th>个人计划</th><th>团队计划</th><th>企业计划</th></tr>
+      <tr>
+        <td><strong>Claude Code</strong></td>
+        <td>❌</td>
+        <td>Pro $20/月<br>Max 5x $100/月<br>Max 20x $200/月</td>
+        <td>高级席位 $100/用户/月</td>
+        <td>API 按量计费</td>
+      </tr>
+      <tr>
+        <td><strong>Cursor</strong></td>
+        <td>✅ 有限功能</td>
+        <td>Pro $20/月<br>Pro+ $60/月<br>Ultra $200/月</td>
+        <td>Teams $40/用户/月</td>
+        <td>Enterprise 定制</td>
+      </tr>
+      <tr>
+        <td><strong>GitHub Copilot</strong></td>
+        <td>✅ 2000次补全/月</td>
+        <td>Pro $10/月</td>
+        <td>Business $19/用户/月</td>
+        <td>Enterprise $39/用户/月</td>
+      </tr>
+      <tr>
+        <td><strong>Aider</strong></td>
+        <td>✅ 完全免费</td>
+        <td>仅 API 费用<br>约 $60-80/月</td>
+        <td>共享 API Key</td>
+        <td>自托管</td>
+      </tr>
+    </table>
+  </div>
+
+  <h3>真实成本估算（全职开发者，每天使用 4 小时）</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>工具</th><th>月费估算</th><th>说明</th></tr>
+      <tr><td>Claude Code Pro</td><td style="color:var(--yellow)">$20</td><td>可能不够用，需要 Max</td></tr>
+      <tr><td>Claude Code Max 5x</td><td style="color:var(--orange)">$100</td><td>大多数用户够用</td></tr>
+      <tr><td>Cursor Pro</td><td style="color:var(--green)">$20</td><td>通常够用</td></tr>
+      <tr><td>GitHub Copilot Pro</td><td style="color:var(--green)">$10</td><td>够用</td></tr>
+      <tr><td>Aider + Claude API</td><td style="color:var(--green)">$60-80</td><td>按实际使用，比订阅制便宜</td></tr>
+    </table>
+  </div>
+
+  <!-- 04 选型 -->
+  <h2 id="selection">04 · 场景选型指南</h2>
+
+  <h3>按开发者类型选择</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>开发者类型</th><th>首选方案</th><th>月费</th><th>理由</th></tr>
+      <tr><td>独立开发者</td><td>Cursor Pro + Claude Code Pro</td><td>$40</td><td>性价比最高，覆盖补全和 Agent</td></tr>
+      <tr><td>预算有限</td><td>Copilot Free + Aider</td><td>$0-40</td><td>Copilot 补全 + Aider 复杂任务</td></tr>
+      <tr><td>小型团队</td><td>Cursor Teams + Claude Code</td><td>$60/人</td><td>团队共享上下文 + Agent 能力</td></tr>
+      <tr><td>中大型企业</td><td>Copilot Enterprise + Claude Code Team</td><td>$139/人</td><td>合规审计 + 强 Agent 能力</td></tr>
+      <tr><td>学生/开源</td><td>Copilot Pro（免费）+ Aider</td><td>$0</td><td>认证学生免费使用 Copilot Pro</td></tr>
+      <tr><td>数据安全要求高</td><td>Aider + 本地模型</td><td>$0</td><td>完全私有化，数据不出境</td></tr>
+    </table>
+  </div>
+
+  <h3>按任务类型选择</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>任务类型</th><th>最佳工具</th><th>理由</th></tr>
+      <tr><td>日常代码补全</td><td><strong>Cursor</strong></td><td>Tab 补全极强，预测准确</td></tr>
+      <tr><td>复杂架构设计</td><td><strong>Claude Code</strong></td><td>推理能力最强</td></tr>
+      <tr><td>大型代码库重构</td><td><strong>Claude Code / Cursor</strong></td><td>代码库理解能力强</td></tr>
+      <tr><td>快速原型开发</td><td><strong>Cursor</strong></td><td>速度快，交互流畅</td></tr>
+      <tr><td>CI/CD 自动化</td><td><strong>Claude Code</strong></td><td>终端集成，Headless 模式</td></tr>
+      <tr><td>安全审查</td><td><strong>Claude Code</strong></td><td>推理深度强</td></tr>
+      <tr><td>代码审查（PR）</td><td><strong>GitHub Copilot</strong></td><td>与 PR 流程深度集成</td></tr>
+      <tr><td>遗留代码理解</td><td><strong>Claude Code</strong></td><td>记忆系统，跨会话积累</td></tr>
+      <tr><td>多人协作</td><td><strong>GitHub Copilot / Cursor Teams</strong></td><td>团队功能完善</td></tr>
+      <tr><td>离线/私有环境</td><td><strong>Aider + 本地模型</strong></td><td>支持本地 LLM</td></tr>
+    </table>
+  </div>
+
+  <h3 id="decision">决策树</h3>
+  <div class="decision-tree">
+    <span class="q">你的主要需求是什么？</span><br>
+    <br>
+    ├── <span class="q">代码补全为主（写代码时的实时建议）</span><br>
+    │   ├── 预算充足 → <span class="a">Cursor Pro</span><br>
+    │   └── 预算有限 → <span class="a">GitHub Copilot Free</span><br>
+    <br>
+    ├── <span class="q">复杂任务自动化（Agent 模式）</span><br>
+    │   ├── 需要最强推理 → <span class="a">Claude Code</span><br>
+    │   ├── 需要 GUI 界面 → <span class="a">Cursor Agent 模式</span><br>
+    │   └── 预算有限 → <span class="a">Aider</span><br>
+    <br>
+    ├── <span class="q">团队协作为主</span><br>
+    │   ├── 需要企业合规 → <span class="a">GitHub Copilot Enterprise</span><br>
+    │   ├── 需要共享上下文 → <span class="a">Cursor Teams</span><br>
+    │   └── 需要 Agent 能力 → <span class="a">Claude Code Team</span><br>
+    <br>
+    └── <span class="q">数据安全/私有化</span><br>
+        ├── 完全私有化 → <span class="a">Aider + 本地模型</span><br>
+        └── 混合部署 → <span class="a">GitHub Copilot Enterprise</span>
+  </div>
+
+  <!-- 05 深度评测 -->
+  <h2 id="reviews">05 · 各工具深度评测</h2>
+
+  <div class="tool-review" id="claude-code">
+    <div class="tool-header">
+      <div class="tool-icon" style="background:rgba(88,166,255,0.15)">🤖</div>
+      <div>
+        <div class="tool-title">Claude Code</div>
+        <div class="tool-subtitle">Anthropic · 终端 AI Agent · $20-200/月</div>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div class="score-bar"><span class="label">推理能力</span><div class="bar-wrap"><div class="bar" style="width:100%;background:var(--green)"></div></div><span style="font-size:12px;color:var(--green)">5/5</span></div>
+      <div class="score-bar"><span class="label">代码补全</span><div class="bar-wrap"><div class="bar" style="width:0%;background:var(--red)"></div></div><span style="font-size:12px;color:var(--red)">不支持</span></div>
+      <div class="score-bar"><span class="label">Agent 能力</span><div class="bar-wrap"><div class="bar" style="width:100%;background:var(--green)"></div></div><span style="font-size:12px;color:var(--green)">5/5</span></div>
+      <div class="score-bar"><span class="label">易用性</span><div class="bar-wrap"><div class="bar" style="width:60%;background:var(--yellow)"></div></div><span style="font-size:12px;color:var(--yellow)">3/5</span></div>
+      <div class="score-bar"><span class="label">性价比</span><div class="bar-wrap"><div class="bar" style="width:60%;background:var(--yellow)"></div></div><span style="font-size:12px;color:var(--yellow)">3/5</span></div>
+      <div class="score-bar"><span class="label">团队协作</span><div class="bar-wrap"><div class="bar" style="width:80%;background:var(--accent)"></div></div><span style="font-size:12px;color:var(--accent)">4/5</span></div>
+    </div>
+    <div class="pros-cons">
+      <div class="pros">
+        <h5>✅ 优势</h5>
+        <ul>
+          <li>推理能力最强，复杂问题分析深度远超其他工具</li>
+          <li>记忆系统完整（CLAUDE.md + MEMORY.md + Auto Dream）</li>
+          <li>真正的自主 Agent，可独立完成复杂多步骤任务</li>
+          <li>CI/CD 集成完美，Headless 模式支持自动化</li>
+          <li>MCP 生态丰富，可扩展能力强</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h5>❌ 劣势</h5>
+        <ul>
+          <li>没有代码补全，不能在编辑器中实时建议</li>
+          <li>终端界面，对不熟悉终端的开发者不友好</li>
+          <li>重度使用成本较高（$100-200/月）</li>
+          <li>需要学习 Prompt 工程才能发挥最大价值</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="tool-review" id="cursor">
+    <div class="tool-header">
+      <div class="tool-icon" style="background:rgba(63,185,80,0.15)">⚡</div>
+      <div>
+        <div class="tool-title">Cursor</div>
+        <div class="tool-subtitle">Anysphere · AI 代码编辑器 · $0-200/月</div>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div class="score-bar"><span class="label">推理能力</span><div class="bar-wrap"><div class="bar" style="width:80%;background:var(--accent)"></div></div><span style="font-size:12px;color:var(--accent)">4/5</span></div>
+      <div class="score-bar"><span class="label">代码补全</span><div class="bar-wrap"><div class="bar" style="width:100%;background:var(--green)"></div></div><span style="font-size:12px;color:var(--green)">5/5</span></div>
+      <div class="score-bar"><span class="label">Agent 能力</span><div class="bar-wrap"><div class="bar" style="width:80%;background:var(--accent)"></div></div><span style="font-size:12px;color:var(--accent)">4/5</span></div>
+      <div class="score-bar"><span class="label">易用性</span><div class="bar-wrap"><div class="bar" style="width:100%;background:var(--green)"></div></div><span style="font-size:12px;color:var(--green)">5/5</span></div>
+      <div class="score-bar"><span class="label">性价比</span><div class="bar-wrap"><div class="bar" style="width:80%;background:var(--accent)"></div></div><span style="font-size:12px;color:var(--accent)">4/5</span></div>
+      <div class="score-bar"><span class="label">团队协作</span><div class="bar-wrap"><div class="bar" style="width:80%;background:var(--accent)"></div></div><span style="font-size:12px;color:var(--accent)">4/5</span></div>
+    </div>
+    <div class="pros-cons">
+      <div class="pros">
+        <h5>✅ 优势</h5>
+        <ul>
+          <li>代码补全最强，Supermaven 预测多行变更</li>
+          <li>完全兼容 VS Code 扩展，迁移成本极低</li>
+          <li>代码库感知强，理解函数、类型、依赖关系</li>
+          <li>后台 Agent 可并行运行任务</li>
+          <li>支持 Claude/GPT/Gemini 多种模型</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h5>❌ 劣势</h5>
+        <ul>
+          <li>AI 质量不稳定，不同任务差异较大</li>
+          <li>超大代码库时性能可能下降</li>
+          <li>记忆系统弱，没有跨会话积累</li>
+          <li>Pro 计划积分用完后需额外付费</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="tool-review" id="copilot">
+    <div class="tool-header">
+      <div class="tool-icon" style="background:rgba(188,140,255,0.15)">🐙</div>
+      <div>
+        <div class="tool-title">GitHub Copilot</div>
+        <div class="tool-subtitle">GitHub/Microsoft · IDE 插件 · $0-39/用户/月</div>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div class="score-bar"><span class="label">推理能力</span><div class="bar-wrap"><div class="bar" style="width:60%;background:var(--yellow)"></div></div><span style="font-size:12px;color:var(--yellow)">3/5</span></div>
+      <div class="score-bar"><span class="label">代码补全</span><div class="bar-wrap"><div class="bar" style="width:80%;background:var(--accent)"></div></div><span style="font-size:12px;color:var(--accent)">4/5</span></div>
+      <div class="score-bar"><span class="label">Agent 能力</span><div class="bar-wrap"><div class="bar" style="width:60%;background:var(--yellow)"></div></div><span style="font-size:12px;color:var(--yellow)">3/5</span></div>
+      <div class="score-bar"><span class="label">易用性</span><div class="bar-wrap"><div class="bar" style="width:100%;background:var(--green)"></div></div><span style="font-size:12px;color:var(--green)">5/5</span></div>
+      <div class="score-bar"><span class="label">性价比</span><div class="bar-wrap"><div class="bar" style="width:100%;background:var(--green)"></div></div><span style="font-size:12px;color:var(--green)">5/5</span></div>
+      <div class="score-bar"><span class="label">团队协作</span><div class="bar-wrap"><div class="bar" style="width:100%;background:var(--green)"></div></div><span style="font-size:12px;color:var(--green)">5/5</span></div>
+    </div>
+    <div class="pros-cons">
+      <div class="pros">
+        <h5>✅ 优势</h5>
+        <ul>
+          <li>GitHub 深度集成，PR 审查无缝融合</li>
+          <li>性价比最高，$10/月 Pro 功能完整</li>
+          <li>支持 VS Code/JetBrains/Visual Studio/Neovim</li>
+          <li>企业功能完善：微调模型、审计日志、IP 赔偿</li>
+          <li>免费计划可用，学生/开源免费</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h5>❌ 劣势</h5>
+        <ul>
+          <li>Agent 能力弱，不如 Cursor 和 Claude Code</li>
+          <li>大型项目上下文感知有限</li>
+          <li>没有跨会话记忆系统</li>
+          <li>复杂问题分析质量不如 Claude Code</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="tool-review" id="aider">
+    <div class="tool-header">
+      <div class="tool-icon" style="background:rgba(240,136,62,0.15)">🔧</div>
+      <div>
+        <div class="tool-title">Aider</div>
+        <div class="tool-subtitle">开源 · 终端工具 · 免费 + API 费用</div>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div class="score-bar"><span class="label">推理能力</span><div class="bar-wrap"><div class="bar" style="width:80%;background:var(--accent)"></div></div><span style="font-size:12px;color:var(--accent)">4/5（取决于模型）</span></div>
+      <div class="score-bar"><span class="label">代码补全</span><div class="bar-wrap"><div class="bar" style="width:0%;background:var(--red)"></div></div><span style="font-size:12px;color:var(--red)">不支持</span></div>
+      <div class="score-bar"><span class="label">Agent 能力</span><div class="bar-wrap"><div class="bar" style="width:60%;background:var(--yellow)"></div></div><span style="font-size:12px;color:var(--yellow)">3/5</span></div>
+      <div class="score-bar"><span class="label">易用性</span><div class="bar-wrap"><div class="bar" style="width:60%;background:var(--yellow)"></div></div><span style="font-size:12px;color:var(--yellow)">3/5</span></div>
+      <div class="score-bar"><span class="label">性价比</span><div class="bar-wrap"><div class="bar" style="width:100%;background:var(--green)"></div></div><span style="font-size:12px;color:var(--green)">5/5</span></div>
+      <div class="score-bar"><span class="label">团队协作</span><div class="bar-wrap"><div class="bar" style="width:40%;background:var(--red)"></div></div><span style="font-size:12px;color:var(--red)">2/5</span></div>
+    </div>
+    <div class="pros-cons">
+      <div class="pros">
+        <h5>✅ 优势</h5>
+        <ul>
+          <li>完全免费开源，只需支付 API 费用</li>
+          <li>支持几乎所有 LLM，包括本地模型</li>
+          <li>自动 Git 提交，附带描述性 commit message</li>
+          <li>Token 效率高，比 Claude Code 少用 4.2 倍 token</li>
+          <li>活跃的开源社区</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h5>❌ 劣势</h5>
+        <ul>
+          <li>仅终端，没有 GUI，学习曲线较陡</li>
+          <li>不支持实时代码补全</li>
+          <li>没有跨会话记忆积累</li>
+          <li>团队协作功能薄弱</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 06 组合策略 -->
+  <h2 id="combo">06 · 组合使用策略</h2>
+
+  <h3>🥇 黄金组合：Cursor + Claude Code</h3>
+  <div class="callout callout-tip">
+    <div class="callout-title">2026年最受专业开发者欢迎的组合</div>
+    <strong>Cursor</strong>：日常编码，代码补全，快速迭代（$20/月）<br>
+    <strong>Claude Code</strong>：复杂任务，架构设计，自动化工作流（$20-100/月）<br>
+    <strong>总费用</strong>：$40-120/月
+  </div>
+  <pre><code>日常工作流：
+上午：用 Cursor 写代码（补全 + 快速修改）
+遇到复杂问题：切换到 Claude Code（深度分析 + 自主执行）
+CI/CD：Claude Code Headless 模式（自动化）</code></pre>
+
+  <h3>💰 预算优化组合：GitHub Copilot + Aider</h3>
+  <div class="callout callout-info">
+    <div class="callout-title">适合预算有限但需要 Agent 能力的开发者</div>
+    <strong>GitHub Copilot Free/Pro</strong>：日常代码补全（$0-10/月）<br>
+    <strong>Aider + Claude API</strong>：复杂任务（按需付费，约 $20-40/月）<br>
+    <strong>总费用</strong>：$20-50/月
+  </div>
+
+  <h3>🏢 企业合规组合：GitHub Copilot Enterprise + Claude Code Team</h3>
+  <div class="callout callout-warn">
+    <div class="callout-title">适合大型企业</div>
+    <strong>GitHub Copilot Enterprise</strong>：日常开发，合规审计，微调模型（$39/用户/月）<br>
+    <strong>Claude Code Team 高级席位</strong>：复杂 Agent 任务，自动化（$100/用户/月）<br>
+    <strong>总费用</strong>：$139/用户/月
+  </div>
+
+  <!-- 07 迁移 -->
+  <h2 id="migration">07 · 迁移指南</h2>
+
+  <h3>从 .cursorrules 迁移到 CLAUDE.md</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>.cursorrules（原内容）</th><th>CLAUDE.md（迁移后）</th></tr>
+      <tr>
+        <td><code>Always use TypeScript</code></td>
+        <td>使用 TypeScript，严格模式（tsconfig strict: true）</td>
+      </tr>
+      <tr>
+        <td><code>Use functional components</code></td>
+        <td>React 组件使用函数式组件 + Hooks，禁止 class 组件</td>
+      </tr>
+      <tr>
+        <td><code>Prefer const over let</code></td>
+        <td>变量声明优先使用 const，需要重新赋值时使用 let，禁止 var</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- 08 趋势 -->
+  <h2 id="trends">08 · 2026年趋势展望</h2>
+
+  <h3>市场格局（2026年3月调查数据）</h3>
+  <div class="callout callout-info">
+    <div class="callout-title">📊 关键数据</div>
+    Claude Code 在 8 个月内超越 GitHub Copilot 和 Cursor，成为<strong>最常用的 AI 编程工具</strong><br>
+    小型公司中 <strong>75%</strong> 的受访者将 Claude Code 作为主要工具<br>
+    <strong>75%</strong> 的受访者表示一半或更多的软件工程工作使用 AI 完成<br>
+    Claude Code 日安装量从 <strong>1770万</strong> 增长到 <strong>2900万</strong>
+  </div>
+
+  <h3>技术趋势</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>趋势</th><th>影响</th><th>时间线</th></tr>
+      <tr><td>多 Agent 协作</td><td>并行开发成为主流</td><td>2026 Q2-Q3</td></tr>
+      <tr><td>常驻 Agent（KAIROS）</td><td>Agent 从"按需调用"变为"持续工作"</td><td>2026 Q3-Q4</td></tr>
+      <tr><td>浏览器控制工具</td><td>Agent 可以直接操作浏览器</td><td>2026 Q3</td></tr>
+      <tr><td>本地模型崛起</td><td>数据安全需求推动私有化部署</td><td>持续</td></tr>
+      <tr><td>工具融合</td><td>各工具功能趋同，差异化减少</td><td>2026-2027</td></tr>
+    </table>
+  </div>
+
+  <hr>
+  <p style="text-align:center; color: var(--text2); font-size: 12px; padding: 20px 0;">
+    AI 编程工具对比与选型指南 · 2026年 Q2 · 5款工具深度评测 · 数据来源：官方文档 + 社区调研
+  </p>
+</main>
+</div><!-- /.layout -->
+
+<script>
+Chart.defaults.color = '#8b949e';
+Chart.defaults.font = { family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", size: 11 };
+
+// 雷达图
+new Chart(document.getElementById('radarChart'), {
+  type: 'radar',
+  data: {
+    labels: ['推理能力', '代码库理解', 'Agent能力', '记忆系统', 'CI/CD集成', '生态扩展'],
+    datasets: [
+      { label: 'Claude Code', data: [5,5,5,5,5,5], borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.1)', pointBackgroundColor: '#58a6ff' },
+      { label: 'Cursor', data: [4,5,4,2,2,3], borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,0.1)', pointBackgroundColor: '#3fb950' },
+      { label: 'GitHub Copilot', data: [3,3,3,1,4,4], borderColor: '#bc8cff', backgroundColor: 'rgba(188,140,255,0.1)', pointBackgroundColor: '#bc8cff' }
+    ]
+  },
+  options: {
+    responsive: true,
+    scales: { r: { min: 0, max: 5, ticks: { stepSize: 1 }, grid: { color: '#21262d' }, angleLines: { color: '#21262d' } } },
+    plugins: { legend: { position: 'bottom', labels: { padding: 10, font: { size: 10 } } } }
+  }
+});
+
+// 价格对比
+new Chart(document.getElementById('priceChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Claude Code\nPro', 'Claude Code\nMax 5x', 'Cursor\nPro', 'GitHub\nCopilot Pro', 'Aider\n(估算)'],
+    datasets: [{
+      label: '月费（美元）',
+      data: [20, 100, 20, 10, 70],
+      backgroundColor: ['#58a6ff', '#f0883e', '#3fb950', '#bc8cff', '#d29922'],
+      borderRadius: 6, borderSkipped: false
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` $${ctx.raw}/月` } } },
+    scales: { x: { grid: { color: '#21262d' } }, y: { grid: { color: '#21262d' }, ticks: { callback: v => '$' + v } } }
+  }
+});
+
+// 综合对比
+new Chart(document.getElementById('compareChart'), {
+  type: 'bar',
+  data: {
+    labels: ['推理能力', '代码补全', 'Agent能力', '易用性', '性价比', '团队协作'],
+    datasets: [
+      { label: 'Claude Code', data: [5,0,5,3,3,4], backgroundColor: 'rgba(88,166,255,0.8)', borderRadius: 4 },
+      { label: 'Cursor', data: [4,5,4,5,4,4], backgroundColor: 'rgba(63,185,80,0.8)', borderRadius: 4 },
+      { label: 'GitHub Copilot', data: [3,4,3,5,5,5], backgroundColor: 'rgba(188,140,255,0.8)', borderRadius: 4 },
+      { label: 'Aider', data: [4,0,3,3,5,2], backgroundColor: 'rgba(240,136,62,0.8)', borderRadius: 4 }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } } },
+    scales: {
+      x: { grid: { color: '#21262d' } },
+      y: { grid: { color: '#21262d' }, min: 0, max: 5, ticks: { stepSize: 1 } }
+    }
+  }
+});
+</script>
+
+<!-- ── Detail dropdown ── -->
+<script>
+(function() {
+  var btn = document.getElementById('detailDropBtn');
+  var panel = document.getElementById('detailDropPanel');
+  if (!btn || !panel) return;
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    panel.classList.toggle('open');
+    btn.classList.toggle('open');
+  });
+  document.addEventListener('click', function() {
+    panel.classList.remove('open');
+    btn.classList.remove('open');
+  });
+  panel.addEventListener('click', function(e) {
+    e.stopPropagation();
+  });
+})();
+
+// ── Sidebar active on scroll (IntersectionObserver) ──
+(function() {
+  const links = document.querySelectorAll('.sidebar-link');
+  if (!links.length) return;
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          links.forEach(l => l.classList.remove('active'));
+          const id = entry.target.id;
+          const active = document.querySelector('.sidebar-link[href="#' + id + '"]');
+          if (active) active.classList.add('active');
+        }
+      });
+    },
+    { rootMargin: '-10% 0px -80% 0px', threshold: 0 }
+  );
+  links.forEach(link => {
+    const id = link.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) observer.observe(el);
+  });
+  links.forEach(link => {
+    link.addEventListener('click', () => {
+      links.forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+    });
+  });
+})();
+</script>
+</body>
+</html>
